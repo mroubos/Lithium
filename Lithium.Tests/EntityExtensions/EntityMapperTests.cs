@@ -10,8 +10,8 @@ namespace Lithium.Tests.EntityExtensions
 		public EntityMapperTests()
 		{
 			// map person entity
-			Connection.Entity<Person>()
-				.Table("Person")
+			Connection.Entity<Member>()
+				.Table("Member")
 				.Identity(p => p.ID);		
 		}
 
@@ -20,33 +20,33 @@ namespace Lithium.Tests.EntityExtensions
 		{
 			const string newName = "Jurian";
 
-			var person = new Person {
+			var person = new Member {
 				Name = "Fabian"
 			};
 
-			// insert new person
+			// insert new member
 			Connection.Insert(person);
 			Assert.IsTrue(person.ID > 0);
 
 			// assert insert
-			Person inserted = Connection.Select<Person>(person.ID);
+			Member inserted = Connection.Select<Member>(person.ID);
 			Assert.AreEqual(person.ID, inserted.ID);
 			Assert.AreEqual(person.Name, inserted.Name);
 
-			// update person
+			// update member
 			inserted.Name = newName;
 			Connection.Update(inserted);
 
 			// assert update
-			Person updated = Connection.Select<Person>(inserted.ID);
+			Member updated = Connection.Select<Member>(inserted.ID);
 			Assert.AreEqual(inserted.ID, updated.ID);
 			Assert.AreEqual(inserted.Name, updated.Name);
 
-			// delete person
+			// delete member
 			Connection.Delete(updated);
 
 			// assert delete
-			Person deleted = Connection.Select<Person>(person.ID);
+			Member deleted = Connection.Select<Member>(person.ID);
 			Assert.IsNull(deleted);
 		}
 	}

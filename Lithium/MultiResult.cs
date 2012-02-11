@@ -30,11 +30,11 @@ namespace Lithium
 				throw new InvalidOperationException("Each grid can only be iterated once");
 
 			QueryIdentity typedIdentity = identity.ForGrid(typeof(T), gridIndex);
-			QueryInfo info = SQLMapper.GetQueryInfo(typedIdentity);
+			QueryInfo info = SqlMapper.GetQueryInfo(typedIdentity);
 
 			var deserializer = (Func<IDataReader, T>)info.Deserializer;
 			if (info.Deserializer == null) {
-				deserializer = SQLMapper.GetDeserializer<T>(reader);
+				deserializer = SqlMapper.GetDeserializer<T>(reader);
 				info.Deserializer = deserializer;
 			}
 
@@ -56,7 +56,7 @@ namespace Lithium
 			finally // finally so that First etc progresses things even when multiple rows
 			{
 				if (!clean) {
-					SQLMapper.DeleteQueryInfo(typedIdentity);
+					SqlMapper.DeleteQueryInfo(typedIdentity);
 				}
 
 				if (index == gridIndex) {

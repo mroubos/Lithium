@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Lithium.Tests.Models
 {
@@ -93,5 +90,18 @@ namespace Lithium.Tests.Models
 		public DateTimeOffset a { get; set; }
 		public DateTimeOffset? b { get; set; }
 		public DateTimeOffset? c { get; set; }
+	}
+
+	public enum SomeEnum
+	{
+		Unknown = -1,
+		One = 1,
+		Two = 2,
+		Three = 3
+	}
+
+	public class EnumTest
+	{
+		public SomeEnum SomeEnum { get; set; }
 	}
 }

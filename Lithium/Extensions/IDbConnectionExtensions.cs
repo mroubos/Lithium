@@ -10,9 +10,9 @@ namespace Lithium.Extensions
 
 			switch (type) {
 				case "SqlConnection":
-					return ConnectionType.SQL;
+					return ConnectionType.Sql;
 				case "SqlCeConnection":
-					return ConnectionType.SQLCE;
+					return ConnectionType.SqlCe;
 				default:
 					return ConnectionType.Unknown;
 			}

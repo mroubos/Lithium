@@ -11,33 +11,33 @@ namespace Lithium.Tests.SimpleExtensions
 		[Test]
 		public void FullCycle()
 		{
-			Person person;
+			Member member;
 
 			const string initialName = "Fabian";
 			const string updatedName = "Jurian";
 
 			// record inserten
-			int id = Connection.Insert<int>("Person", new { Name = initialName });
+			int id = Connection.Insert<int>("Member", new { Name = initialName });
 
 			// record ophalen en controleren of waarde niet null is en de naam overeenkomt
-			person = Connection.Query<Person>("select * from Person where ID = @id", new { ID = id }).FirstOrDefault();
-			Assert.IsNotNull(person);
-			Assert.AreEqual(initialName, person.Name);
+			member = Connection.Query<Member>("select * from Member where ID = @id", new { ID = id }).FirstOrDefault();
+			Assert.IsNotNull(member);
+			Assert.AreEqual(initialName, member.Name);
 
 			// record updaten op basis van het id
-			Connection.Update("Person", new { Name = updatedName }, new { ID = id });
+			Connection.Update("Member", new { Name = updatedName }, new { ID = id });
 
 			// record weer ophalen en controleren of waarde niet null is en de naam overeenkomt met de nieuwe naam
-			person = Connection.Query<Person>("select * from Person where ID = @id", new { ID = id }).FirstOrDefault();
-			Assert.IsNotNull(person);
-			Assert.AreEqual(updatedName, person.Name);
+			member = Connection.Query<Member>("select * from Member where ID = @id", new { ID = id }).FirstOrDefault();
+			Assert.IsNotNull(member);
+			Assert.AreEqual(updatedName, member.Name);
 
 			// record verwijderen op basis van het id
-			Connection.Delete("Person", new { ID = id });
+			Connection.Delete("Member", new { ID = id });
 
 			// record proberen op te halen en bevestigen dat het record niet gevonden kan worden
-			person = Connection.Query<Person>("select * from Person where ID = @id", new { ID = id }).FirstOrDefault();
-			Assert.Null(person);
+			member = Connection.Query<Member>("select * from Member where ID = @id", new { ID = id }).FirstOrDefault();
+			Assert.Null(member);
 		}
 	}
 }

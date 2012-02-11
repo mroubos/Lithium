@@ -12,7 +12,7 @@ using Lithium.Extensions;
 
 namespace Lithium
 {
-	public static class SQLMapper
+	public static class SqlMapper
 	{
 		private static readonly ConcurrentDictionary<QueryIdentity, QueryInfo> cache = new ConcurrentDictionary<QueryIdentity, QueryInfo>();
 		private static readonly Dictionary<RuntimeTypeHandle, DbType> typeMap = new Dictionary<RuntimeTypeHandle, DbType>();
@@ -24,12 +24,12 @@ namespace Lithium
 		private static readonly MethodInfo getValueByIndex;
 		private static readonly MethodInfo getValueByKey;
 
-		static SQLMapper()
+		static SqlMapper()
 		{
-			createParameter = typeof(SQLMapper).GetMethod("CreateParameter", BindingFlags.NonPublic | BindingFlags.Static);
-			createParameterList = typeof(SQLMapper).GetMethod("CreateParameterList", BindingFlags.NonPublic | BindingFlags.Static);
-			convertStringToChar = typeof(SQLMapper).GetMethod("ConvertStringToChar", BindingFlags.NonPublic | BindingFlags.Static);
-			throwDataException = typeof(SQLMapper).GetMethod("ThrowDataException", BindingFlags.NonPublic | BindingFlags.Static);
+			createParameter = typeof(SqlMapper).GetMethod("CreateParameter", BindingFlags.NonPublic | BindingFlags.Static);
+			createParameterList = typeof(SqlMapper).GetMethod("CreateParameterList", BindingFlags.NonPublic | BindingFlags.Static);
+			convertStringToChar = typeof(SqlMapper).GetMethod("ConvertStringToChar", BindingFlags.NonPublic | BindingFlags.Static);
+			throwDataException = typeof(SqlMapper).GetMethod("ThrowDataException", BindingFlags.NonPublic | BindingFlags.Static);
 			getValueByIndex = (from m in typeof(IDataRecord).GetProperties(BindingFlags.Instance | BindingFlags.Public)
 							   where m.GetIndexParameters().Any() && m.GetIndexParameters()[0].ParameterType == typeof(int)
 							   select m.GetGetMethod()).First();
@@ -480,6 +480,9 @@ namespace Lithium
 
 			if (typeof(IEnumerable).IsAssignableFrom(type))
 				return DbType.Xml;
+
+			if (type.IsEnum)
+				return DbType.Int32;
 
 			throw new NotSupportedException(string.Format(@"Type [{0}] is not supported", type));
 		}

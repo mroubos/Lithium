@@ -51,12 +51,12 @@
     <Compile Include="Extensions\ILGeneratorExtensions.cs" />
     <Compile Include="MultiResult.cs" />
     <Compile Include="Parameter.cs" />
-    <Compile Include="SQLMapper.cs" />
     <Compile Include="ParameterInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueryIdentity.cs" />
     <Compile Include="QueryInfo.cs" />
     <Compile Include="SimpleExtensions\SimpleExtensions.cs" />
+    <Compile Include="SqlMapper.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\..\Nuget\Nuget.Targets" />

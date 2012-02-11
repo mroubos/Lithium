@@ -5,7 +5,6 @@ using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using Lithium.Extensions;
 
 namespace Lithium.SimpleExtensions
 {
@@ -23,7 +22,7 @@ namespace Lithium.SimpleExtensions
 		public static IEnumerable<T> StoredProcedure<T>(this IDbConnection connection, string storedProcedureName, object parameters = null)
 		{
 			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, storedProcedureName, typeof(T), parameters != null ? parameters.GetType() : null);
-			QueryInfo info = SQLMapper.GetQueryInfo(identity);
+			QueryInfo info = SqlMapper.GetQueryInfo(identity);
 
 			if (info.Query == null ) {
 				info.Query = GenerateStoredProcedureQuery(storedProcedureName, parameters);
@@ -47,7 +46,7 @@ namespace Lithium.SimpleExtensions
 		public static T Insert<T>(this IDbConnection connection, string tableName, object parameters)
 		{
 			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, "insert " + tableName, null, parameters.GetType());
-			QueryInfo info = SQLMapper.GetQueryInfo(identity);
+			QueryInfo info = SqlMapper.GetQueryInfo(identity);
 
 			if (info.Query == null) {
 				info.Query = GenerateInsertQuery(tableName, parameters);
@@ -71,7 +70,7 @@ namespace Lithium.SimpleExtensions
 		public static int Update(this IDbConnection connection, string tableName, object parameters, object parametersWhere)
 		{
 			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, "update " + tableName, null, parameters.GetType(), parametersWhere.GetType());
-			QueryInfo info = SQLMapper.GetQueryInfo(identity);
+			QueryInfo info = SqlMapper.GetQueryInfo(identity);
 
 			if (info.Query == null) {
 				info.Query = GenerateUpdateQuery(tableName, parameters, parametersWhere);
@@ -136,7 +135,7 @@ namespace Lithium.SimpleExtensions
 		public static int Delete(this IDbConnection connection, string tableName, object parameters)
 		{
 			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, "delete " + tableName, null, parameters.GetType());
-			QueryInfo info = SQLMapper.GetQueryInfo(identity);
+			QueryInfo info = SqlMapper.GetQueryInfo(identity);
 
 			if (info.Query == null) {
 				info.Query = GenerateDeleteQuery(tableName, parameters);

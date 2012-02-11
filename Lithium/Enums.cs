@@ -3,7 +3,7 @@
 	public enum ConnectionType
 	{
 		Unknown,
-		SQL,
-		SQLCE
+		Sql,
+		SqlCe
 	}
 }
