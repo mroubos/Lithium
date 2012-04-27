@@ -1,15 +1,67 @@
 ﻿using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlServerCe;
 using System.Linq;
 using Lithium.Extensions;
 using Lithium.Tests.Models;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Lithium.Tests
 {
-	[TestFixture]
-	public class SqlMapperTests : TestBase
+	[TestClass]
+	public class SqlMapperTests
 	{
-		[Test]
+		protected static IDbConnection Connection { get; private set; }
+
+		[ClassInitialize]
+		public static void SetUp(TestContext context)
+		{
+			Connection = new SqlCeConnection(@"Data Source=Database\Tests.sdf");
+			// Connection = new SqlConnection(@"");
+
+			Connection.Open();
+		}
+
+		[ClassCleanup]
+		public static void TearDown()
+		{
+			Connection.Dispose();
+		}
+
+		[TestMethod]
+		public void SubProperties()
+		{
+			var result = Connection.Query<Branch>("select 'Cafe' as Name, 'Horeca' as 'Category.Name', 'Asdf' as 'Category.Info.Name', 'Asdf2' as 'Category.Info2.Name'").First();
+
+			Assert.IsNotNull(result.Category);
+			Assert.IsNotNull(result.Category.Info);
+			Assert.IsNotNull(result.Category.Info2);
+
+			Assert.AreEqual("Cafe", result.Name);
+			Assert.AreEqual("Horeca", result.Category.Name);
+			Assert.AreEqual("Asdf", result.Category.Info.Name);
+			Assert.AreEqual("Asdf2", result.Category.Info2.Name);
+		}
+
+		public class Branch
+		{
+			public string Name { get; set; }
+			public Category Category { get; set; }
+		}
+
+		public class Category
+		{
+			public string Name { get; set; }
+			public Info Info { get; set; }
+			public Info Info2 { get; set; }
+		}
+
+		public class Info
+		{
+			public string Name { get; set; }
+		}
+
+		[TestMethod]
 		public void DictionaryParameters()
 		{
 			const int id = 1;
@@ -22,7 +74,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(id, result);
 		}
 
-		[Test]
+		[TestMethod]
 		public void LongString()
 		{
 			dynamic result;
@@ -43,7 +95,7 @@ namespace Lithium.Tests
 			}
 		}
 
-		[Test]
+		[TestMethod]
 		public void Enums()
 		{
 			var input = new Member {
@@ -59,7 +111,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(input.MemberType, result.MemberType);
 		}
 
-		[Test]
+		[TestMethod]
 		public void EnumsCasted()
 		{
 			var input = new {
@@ -75,7 +127,7 @@ namespace Lithium.Tests
 			Assert.AreEqual((MemberType)input.MemberType, result.MemberType);
 		}
 
-		[Test]
+		[TestMethod]
 		public void EnumsMissing()
 		{
 			var result = Connection.Query<Member>("select @id ID, @name Name, @memberType MemberType", new {

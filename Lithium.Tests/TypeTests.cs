@@ -1,15 +1,34 @@
 ﻿using System;
+using System.Data;
+using System.Data.SqlServerCe;
 using System.Linq;
 using Lithium.Extensions;
 using Lithium.Tests.Models;
-using NUnit.Framework;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Lithium.Tests
 {
-	[TestFixture]
-	public class TypeTests : TestBase
+	[TestClass]
+	public class TypeTests
 	{
-		[Test]
+		protected static IDbConnection Connection { get; private set; }
+
+		[ClassInitialize]
+		public static void SetUp(TestContext context)
+		{
+			Connection = new SqlCeConnection(@"Data Source=Database\Tests.sdf");
+			// Connection = new SqlConnection(@"");
+
+			Connection.Open();
+		}
+
+		[ClassCleanup]
+		public static void TearDown()
+		{
+			Connection.Dispose();
+		}
+
+		[TestMethod]
 		public void Byte()
 		{
 			byte a = 1;
@@ -36,7 +55,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Short()
 		{
 			short a = 1;
@@ -63,7 +82,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Int()
 		{
 			int a = 1;
@@ -90,7 +109,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Long()
 		{
 			long a = 1;
@@ -117,7 +136,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Float()
 		{
 			float a = 0.1f;
@@ -144,7 +163,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Double()
 		{
 			double a = 0.1d;
@@ -171,7 +190,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Decimal()
 		{
 			decimal a = 0.1m;
@@ -198,7 +217,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Bool()
 		{
 			bool a = true;
@@ -225,7 +244,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Char()
 		{
 			char a = 'a';
@@ -253,7 +272,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void String()
 		{
 			string a = "string";
@@ -278,7 +297,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(b, dynamicResult.b);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Guid()
 		{
 			Guid a = System.Guid.NewGuid();
@@ -305,7 +324,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void DateTime()
 		{
 			DateTime a = System.DateTime.Now;
@@ -338,7 +357,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void DateTimeOffset()
 		{
 			// SQLCE doesn't support DateTimeOffset
@@ -369,7 +388,7 @@ namespace Lithium.Tests
 			Assert.AreEqual(c, result.c);
 		}
 
-		[Test]
+		[TestMethod]
 		public void Enums()
 		{
 			var resultA = Connection.Query<SomeEnum>(@"select @a", new { a = SomeEnum.Two }).Single();

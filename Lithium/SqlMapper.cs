@@ -252,22 +252,6 @@ namespace Lithium
 
 			command.CommandText = command.CommandText.Replace(name, names);
 		}
-		private static IEnumerable<ParameterInfo> GetPropertyInfo(object parameters)
-		{
-			if (parameters is Dictionary<string, object>) {
-				var dictionary = parameters as Dictionary<string, object>;
-				return dictionary.Select(d => new ParameterInfo {
-					Name = d.Key,
-					Type = d.Value != null ? d.Value.GetType() : typeof(string)
-				});
-			}
-
-			return parameters.GetType().GetProperties().Select(p => new ParameterInfo {
-				Name = p.Name,
-				Type = p.PropertyType,
-				Getter = p.GetGetMethod()
-			});
-		}
 
 		// deserializers
 		internal static Func<IDataReader, T> GetDeserializer<T>(IDataRecord dataRecord)
@@ -282,6 +266,47 @@ namespace Lithium
 
 			return GetStructDeserializer<T>();
 		}
+		public class PropertyInfo
+		{
+			public string Name { get; set; }
+			public Type Type { get; set; }
+			public List<MethodInfo> GetMethods { get; set; }
+			public MethodInfo SetMethod { get; set; }			
+		}
+		private static IEnumerable<PropertyInfo> GetProperties(Type type, List<string> name = null, List<MethodInfo> getMethods = null) {
+			var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+			List<PropertyInfo> result = new List<PropertyInfo>();
+			foreach (var property in properties) {
+				if (property.PropertyType.IsClass && property.PropertyType != typeof(string)) {
+					var _name = name == null ? new List<string>() : new List<string>(name);
+					_name.Add(property.Name);
+
+					var _getMethods = getMethods == null ? new List<MethodInfo>() : new List<MethodInfo>(getMethods);
+					_getMethods.Add(property.GetGetMethod());
+
+					result.AddRange(GetProperties(property.PropertyType, _name, _getMethods));
+				}
+				else {
+					var setMethod = property.DeclaringType == type ? property.GetSetMethod(true) : property.DeclaringType.GetProperty(property.Name).GetSetMethod(true);
+					if (setMethod != null) {
+						var _name = name == null ? new List<string>() : new List<string>(name);
+						_name.Add(property.Name);
+
+						var _getMethods = getMethods == null ? new List<MethodInfo>() : new List<MethodInfo>(getMethods);
+
+						result.Add(new PropertyInfo {
+							Name = string.Join(".", _name),
+							Type = property.PropertyType,
+							SetMethod = setMethod,
+							GetMethods = _getMethods
+						});
+					}
+				}
+			}
+
+			return result;
+		}
 		private static Func<IDataReader, T> GetClassDeserializer<T>(IDataRecord dataRecord)
 		{
 			var t = typeof(T);
@@ -294,14 +319,7 @@ namespace Lithium
 
 			// select all properties and fields
 			var fields = t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-			var properties = from p in t.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-							 let setMethod = p.DeclaringType == t ? p.GetSetMethod(true) : p.DeclaringType.GetProperty(p.Name).GetSetMethod(true)
-							 where setMethod != null
-							 select new {
-								 Name = p.Name,
-								 Type = p.PropertyType,
-								 SetMethod = setMethod
-							 };
+			var properties = GetProperties(t);
 
 			// setters
 			var setters = (from c in columns
@@ -330,6 +348,7 @@ namespace Lithium
 				// create instance of T
 				il.DeclareLocal(t);
 				il.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes)); // [result]
+				il.InitializeProperties(t);		
 
 				foreach (var setter in setters) {
 					index += 1;
@@ -347,21 +366,28 @@ namespace Lithium
 
 					il.Emit(OpCodes.Dup); // [result] [result]
 
-					il.Emit(OpCodes.Ldarg_0); // [result] [result] [reader]
-					il.EmitInt32(index); // [result] [result] [reader] [index]
-					il.Emit(OpCodes.Dup); // [result] [result] [reader] [index] [index]
-					il.Emit(OpCodes.Stloc_0); // [result] [result] [reader] [index]
-					il.Emit(OpCodes.Callvirt, getValueByIndex); // [result] [result] [untyped value]
+					// load the nested property if any
+					if (setter.Property != null) {
+						foreach (var getMethod in setter.Property.GetMethods) {
+							il.Emit(OpCodes.Callvirt, getMethod); // [result] [result or nested-property]
+						}
+					}
 
-					il.Emit(OpCodes.Dup); // [result] [result] [untyped value] [untyped value]
-					il.Emit(OpCodes.Isinst, typeof(DBNull)); // [result] [result] [untyped value] [DBNull or null]
-					il.Emit(OpCodes.Brtrue_S, nullLabel); // [result] [result] [untyped value], value is null
+					il.Emit(OpCodes.Ldarg_0); // [result] [result or nested-property] [reader]
+					il.EmitInt32(index); // [result] [result or nested-property] [reader] [index]
+					il.Emit(OpCodes.Dup); // [result] [result or nested-property] [reader] [index] [index]
+					il.Emit(OpCodes.Stloc_0); // [result] [result or nested-property] [reader] [index]
+					il.Emit(OpCodes.Callvirt, getValueByIndex); // [result] [result or nested-property] [untyped value]
+
+					il.Emit(OpCodes.Dup); // [result] [result or nested-property] [untyped value] [untyped value]
+					il.Emit(OpCodes.Isinst, typeof(DBNull)); // [result] [result or nested-property] [untyped value] [DBNull or null]
+					il.Emit(OpCodes.Brtrue_S, nullLabel); // [result] [result or nested-property] [untyped value], value is null
 
 					// a char value is returned as a string and its not possible to implicitly cast it, so we have to convert it
 					if (unboxType == typeof(char))
-						il.Emit(OpCodes.Call, convertStringToChar); // [result] [result] [untyped char]
+						il.Emit(OpCodes.Call, convertStringToChar); // [result] [result or nested-property] [untyped char]
 
-					il.Emit(OpCodes.Unbox_Any, memberType); // [result] [result] [typed value]
+					il.Emit(OpCodes.Unbox_Any, memberType); // [result] [result or nested-property] [typed value]
 
 					// set value
 					if (setter.Property != null)
@@ -373,8 +399,8 @@ namespace Lithium
 					il.Emit(OpCodes.Br, nextLabel);
 
 					// value was null so clear the stack and jump to the next setter
-					il.MarkLabel(nullLabel); // [result] [result] [untyped value]
-					il.Emit(OpCodes.Pop); // [result] [result]
+					il.MarkLabel(nullLabel); // [result] [result or nested-property] [untyped value]
+					il.Emit(OpCodes.Pop); // [result] [result or nested-property]
 					il.Emit(OpCodes.Pop); // [result]
 
 					// end of the "loop"
@@ -511,5 +537,22 @@ namespace Lithium
 		{
 			return (value as string)[0];
 		}
+		private static IEnumerable<ParameterInfo> GetPropertyInfo(object parameters)
+		{
+			if (parameters is Dictionary<string, object>) {
+				var dictionary = parameters as Dictionary<string, object>;
+				return dictionary.Select(d => new ParameterInfo {
+					Name = d.Key,
+					Type = d.Value != null ? d.Value.GetType() : typeof(string)
+				});
+			}
+
+			return parameters.GetType().GetProperties().Select(p => new ParameterInfo {
+				Name = p.Name,
+				Type = p.PropertyType,
+				Getter = p.GetGetMethod()
+			});
+		}
+
 	}
 }
