@@ -1,4 +1,7 @@
 ﻿using System.Reflection.Emit;
+using System;
+using System.Reflection;
+using System.Linq;
 
 namespace Lithium.Extensions
 {
@@ -23,6 +26,23 @@ namespace Lithium.Extensions
 					else
 						il.Emit(OpCodes.Ldc_I4, value);
 					break;
+			}
+		}
+
+		/// <summary>
+		/// Initializes all properties on the instance of parameter Type
+		/// </summary>
+		/// <param name="type">Type (requires an empty constructor on the type and all the class type properties)</param>
+		public static void InitializeProperties(this ILGenerator il, Type type)
+		{
+			var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+								 .Where(p => p.PropertyType.IsClass && p.PropertyType != typeof(string));
+
+			foreach (var property in properties) {
+				il.Emit(OpCodes.Dup); // [object] [object]
+				il.Emit(OpCodes.Newobj, property.PropertyType.GetConstructor(Type.EmptyTypes)); // [object] [object] [new object]
+				il.InitializeProperties(property.PropertyType); // [object] [object] [new object]				
+				il.Emit(OpCodes.Callvirt, property.GetSetMethod()); // [object] 
 			}
 		}
 	}

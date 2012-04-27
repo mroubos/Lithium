@@ -1,14 +1,33 @@
-﻿using System.Linq;
-using Lithium.Tests.Models;
-using NUnit.Framework;
+﻿using System.Data;
+using System.Data.SqlServerCe;
+using System.Linq;
 using Lithium.SimpleExtensions;
+using Lithium.Tests.Models;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Lithium.Tests.SimpleExtensions
 {
-	[TestFixture]
-	public class SimpleExtensions : TestBase
+	[TestClass]
+	public class SimpleExtensions
 	{
-		[Test]
+		protected static IDbConnection Connection { get; private set; }
+
+		[ClassInitialize]
+		public static void SetUp(TestContext context)
+		{
+			Connection = new SqlCeConnection(@"Data Source=Database\Tests.sdf");
+			// Connection = new SqlConnection(@"");
+
+			Connection.Open();
+		}
+
+		[ClassCleanup]
+		public static void TearDown()
+		{
+			Connection.Dispose();
+		}
+
+		[TestMethod]
 		public void FullCycle()
 		{
 			Member member;
@@ -37,7 +56,7 @@ namespace Lithium.Tests.SimpleExtensions
 
 			// record proberen op te halen en bevestigen dat het record niet gevonden kan worden
 			member = Connection.Query<Member>("select * from Member where ID = @id", new { ID = id }).FirstOrDefault();
-			Assert.Null(member);
+			Assert.IsNull(member);
 		}
 	}
 }
