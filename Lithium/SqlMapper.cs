@@ -305,10 +305,14 @@ namespace Lithium
 
 			// setters
 			var setters = (from c in columns
-						   let property = properties.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCulture)) ??								// property case sensitive first
-										  properties.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCultureIgnoreCase))							// property case insensitive second
-						   let field = property != null ? null : (fields.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCulture)) ??			// field case sensitive third
-																  fields.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCultureIgnoreCase)))	// field case insensitive fourth
+						   let property = properties.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCulture)) ??															// property case sensitive
+										  properties.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCultureIgnoreCase))	??													// property case insensitive
+										  properties.FirstOrDefault(p => p.Type.IsEnum && string.Equals(p.Name + "ID", c, StringComparison.InvariantCulture)) ??									// property enum with ID postfix case sensitive
+										  properties.FirstOrDefault(p => p.Type.IsEnum && string.Equals(p.Name + "ID", c, StringComparison.InvariantCultureIgnoreCase))								// property enum with ID postfix case insensitive
+						   let field = property != null ? null : (fields.FirstOrDefault(f => string.Equals(f.Name, c, StringComparison.InvariantCulture)) ??										// field case sensitive
+																  fields.FirstOrDefault(f => string.Equals(f.Name, c, StringComparison.InvariantCultureIgnoreCase)) ??								// field case insensitive
+																  fields.FirstOrDefault(f => f.FieldType.IsEnum && string.Equals(f.Name + "ID", c, StringComparison.InvariantCultureIgnoreCase)) ??	// field enum with ID postfix case sensitive
+																  fields.FirstOrDefault(f => f.FieldType.IsEnum && string.Equals(f.Name + "ID", c, StringComparison.InvariantCultureIgnoreCase)))	// field enum with ID postfix case insensitive
 						   select new {
 							   Name = c,
 							   Property = property,

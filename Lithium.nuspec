@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+<package>
   <metadata>
-    <version>0.1.1.0</version>
+    <version></version>
     <authors>Fabian de Groot</authors>
     <owners />
     <projectUrl>https://github.com/fbdegroot/Lithium</projectUrl>
@@ -11,6 +11,6 @@
     <description>Lightweight SQL object mapper based on dapper-dot-net by Sam Saffron and Marc Gravell.</description>
   </metadata>
   <files>
-    <file src="Lithium\bin\Release\Lithium.dll" target="lib\net40\Lithium.dll" />
+    <file src="Lithium.dll" target="lib\net40\Lithium.dll" />
   </files>
 </package>

@@ -88,5 +88,21 @@ namespace Lithium.Tests
 			Assert.AreEqual("Fabian", result.Name);
 			Assert.AreEqual(4, (int)result.MemberType);
 		}
+
+		[Test]
+		public void EnumsPostfixID()
+		{
+			var input = new Member {
+				ID = 1,
+				Name = "Fabian",
+				MemberType = MemberType.Administrator
+			};
+
+			var result = Connection.Query<Member>("select @id ID, @name Name, @memberType MemberTypeID", input).Single();
+
+			Assert.AreEqual(input.ID, result.ID);
+			Assert.AreEqual(input.Name, result.Name);
+			Assert.AreEqual(input.MemberType, result.MemberType);
+		}
 	}
 }
