@@ -1,8 +1,10 @@
-﻿using System.Data;
-using System.Data.SqlServerCe;
+﻿using System.Configuration;
+using System.Data;
+using System.Data.SqlClient;
 using Lithium.EntityExtensions;
 using Lithium.Tests.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Data.SqlServerCe;
 
 namespace Lithium.Tests.EntityExtensions
 {
@@ -12,29 +14,27 @@ namespace Lithium.Tests.EntityExtensions
 		protected static IDbConnection Connection { get; private set; }
 
 		[ClassInitialize]
-		public static void SetUp(TestContext context)
+		public static void Initialize(TestContext context)
 		{
-			Connection = new SqlCeConnection(@"Data Source=Database\Tests.sdf");
-			// Connection = new SqlConnection(@"");
+			Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
+			//Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
+
+			// map person entity
+			Connection.Entity<Member>()
+				.Table("Member")
+				.Identity(p => p.ID);
 
 			Connection.Open();
 		}
 
 		[ClassCleanup]
-		public static void TearDown()
+		public static void Cleanup()
 		{
 			Connection.Dispose();
 		}
 
-		public EntityMapperTests()
-		{
-			// map person entity
-			Connection.Entity<Member>()
-				.Table("Member")
-				.Identity(p => p.ID);		
-		}
-
 		[TestMethod]
+		[DeploymentItem("Database/Tests.sdf")]
 		public void FullCycle()
 		{
 			const string newName = "Jurian";

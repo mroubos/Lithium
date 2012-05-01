@@ -16,8 +16,8 @@ namespace Lithium.Tests
 		[ClassInitialize]
 		public static void SetUp(TestContext context)
 		{
-			Connection = new SqlCeConnection(@"Data Source=Database\Tests.sdf");
-			// Connection = new SqlConnection(@"");
+			Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
+			//Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
 
 			Connection.Open();
 		}
@@ -29,36 +29,32 @@ namespace Lithium.Tests
 		}
 
 		[TestMethod]
-		public void SubProperties()
+		public void NestedProperties()
 		{
-			var result = Connection.Query<Branch>("select 'Cafe' as Name, 'Horeca' as 'Category.Name', 'Asdf' as 'Category.Info.Name', 'Asdf2' as 'Category.Info2.Name'").First();
+			// SQLCE doesn't support periods in column names
+			if (Connection.GetConnectionType() == ConnectionType.SqlCe)
+				return;
 
-			Assert.IsNotNull(result.Category);
-			Assert.IsNotNull(result.Category.Info);
-			Assert.IsNotNull(result.Category.Info2);
+			Person person = Connection.Query<Person>("select 'Fabian' as Name, 'fabian@mail.com' as 'ContactInfo1.Email', 'Gouda' as 'ContactInfo1.City.Name', 'mail@fabian.com' as 'ContactInfo2.Email'").First();
 
-			Assert.AreEqual("Cafe", result.Name);
-			Assert.AreEqual("Horeca", result.Category.Name);
-			Assert.AreEqual("Asdf", result.Category.Info.Name);
-			Assert.AreEqual("Asdf2", result.Category.Info2.Name);
+			Assert.IsNotNull(person);
+			Assert.IsNotNull(person.ContactInfo1);
+			Assert.IsNotNull(person.ContactInfo2);
+
+			Assert.AreEqual("Fabian", person.Name);
+			Assert.AreEqual("fabian@mail.com", person.ContactInfo1.Email);
+			Assert.AreEqual("mail@fabian.com", person.ContactInfo2.Email);
+			Assert.AreEqual("Gouda", person.ContactInfo1.City.Name);
 		}
 
-		public class Branch
+		[TestMethod]
+		public void DoesntInstantiatePropertiesWhichAreNotInTheResultSet()
 		{
-			public string Name { get; set; }
-			public Category Category { get; set; }
-		}
+			Person person = Connection.Query<Person>("select 'Fabian' as Name").First();
 
-		public class Category
-		{
-			public string Name { get; set; }
-			public Info Info { get; set; }
-			public Info Info2 { get; set; }
-		}
-
-		public class Info
-		{
-			public string Name { get; set; }
+			Assert.IsNotNull(person);
+			Assert.IsNull(person.ContactInfo1);
+			Assert.IsNull(person.ContactInfo2);
 		}
 
 		[TestMethod]
@@ -98,63 +94,56 @@ namespace Lithium.Tests
 		[TestMethod]
 		public void Enums()
 		{
-			var input = new Member {
-				ID = 1,
-				Name = "Fabian",
-				MemberType = MemberType.Administrator
-			};
+			var resultA = Connection.Query<SomeEnum>("select @a", new { a = SomeEnum.Two }).Single();
+			Assert.AreEqual(SomeEnum.Two, resultA);
 
-			var result = Connection.Query<Member>("select @id ID, @name Name, @memberType MemberType", input).Single();
+			var resultB = Connection.Query<SomeEnum>("select 2").Single();
+			Assert.AreEqual(SomeEnum.Two, resultB);
 
-			Assert.AreEqual(input.ID, result.ID);
-			Assert.AreEqual(input.Name, result.Name);
-			Assert.AreEqual(input.MemberType, result.MemberType);
+			var resultC = Connection.Query<SomeEnum>("select 'Two'").Single();
+			Assert.AreEqual(SomeEnum.Two, resultC);
+
+			var resultD = Connection.Query<SomeEnum>("select 'tWo'").Single();
+			Assert.AreEqual(SomeEnum.Two, resultD);
+
+			var resultE = Connection.Query<SomeEnum?>("select null").Single();
+			Assert.AreEqual(null, resultE);
+
+			var resultF = Connection.Query<EnumTest>("select @a SomeEnum", new { a = SomeEnum.Two }).Single();
+			Assert.AreEqual(SomeEnum.Two, resultF.SomeEnum);
+
+			var resultG = Connection.Query<EnumTest>("select 2 SomeEnum").Single();
+			Assert.AreEqual(SomeEnum.Two, resultG.SomeEnum);
+
+			var resultH = Connection.Query<EnumTest>("select 'Two' SomeEnum").Single();
+			Assert.AreEqual(SomeEnum.Two, resultH.SomeEnum);
+
+			var resultI = Connection.Query<EnumTest>("select 'tWo' SomeEnum").Single();
+			Assert.AreEqual(SomeEnum.Two, resultI.SomeEnum);
+
+			var resultJ = Connection.Query<EnumTest>("select null SomeEnumNullable").Single();
+			Assert.AreEqual(null, resultJ.SomeEnumNullable);
+
+			var resultK = Connection.Query<EnumTest>("select 2 SomeEnumID").Single();
+			Assert.AreEqual(SomeEnum.Two, resultK.SomeEnum);
+
+			var resultL = Connection.Query<EnumTest>("select 'Two' SomeEnumID").Single();
+			Assert.AreEqual(SomeEnum.Two, resultL.SomeEnum);
+
+			var resultM = Connection.Query<EnumTest>("select 'tWo' SomeEnumID").Single();
+			Assert.AreEqual(SomeEnum.Two, resultM.SomeEnum);
+
+			var resultN = Connection.Query<EnumTest>("select 4 SomeEnum").Single();
+			Assert.AreEqual((SomeEnum)4, resultN.SomeEnum);
 		}
 
 		[TestMethod]
-		public void EnumsCasted()
+		public void Structs()
 		{
-			var input = new {
-				ID = 1,
-				Name = "Fabian",
-				MemberType = 2
-			};
+			var member = Connection.Query<MemberStruct>("select 1 ID, 'Fabian' Name").First();
 
-			var result = Connection.Query<Member>("select @id ID, @name Name, @memberType MemberType", input).Single();
-
-			Assert.AreEqual(input.ID, result.ID);
-			Assert.AreEqual(input.Name, result.Name);
-			Assert.AreEqual((MemberType)input.MemberType, result.MemberType);
-		}
-
-		[TestMethod]
-		public void EnumsMissing()
-		{
-			var result = Connection.Query<Member>("select @id ID, @name Name, @memberType MemberType", new {
-				id = 1, 
-				name ="Fabian", 
-				MemberType = 4
-			}).Single();
-
-			Assert.AreEqual(1, result.ID);
-			Assert.AreEqual("Fabian", result.Name);
-			Assert.AreEqual(4, (int)result.MemberType);
-		}
-
-		[Test]
-		public void EnumsPostfixID()
-		{
-			var input = new Member {
-				ID = 1,
-				Name = "Fabian",
-				MemberType = MemberType.Administrator
-			};
-
-			var result = Connection.Query<Member>("select @id ID, @name Name, @memberType MemberTypeID", input).Single();
-
-			Assert.AreEqual(input.ID, result.ID);
-			Assert.AreEqual(input.Name, result.Name);
-			Assert.AreEqual(input.MemberType, result.MemberType);
+			Assert.AreEqual(1, member.ID);
+			Assert.AreEqual("Fabian", member.Name);
 		}
 	}
 }

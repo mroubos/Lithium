@@ -86,7 +86,7 @@ namespace Lithium.EntityExtensions
 				il.Emit(OpCodes.Callvirt, propertyInfo.GetSetMethod()); // stack is empty
 			}
 			else {
-				il.Emit(OpCodes.Castclass, fieldInfo.FieldType); // [entity] [typed value]
+				il.Emit(OpCodes.Call, typeof(Convert).GetMethod("To" + fieldInfo.FieldType.Name, new[] { typeof(object) })); // [entity] [typed value]
 				il.Emit(OpCodes.Stfld, fieldInfo); // stack is empty
 			}
 
