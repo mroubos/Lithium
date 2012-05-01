@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
+using System.Threading;
 using Lithium.Extensions;
 
 namespace Lithium
@@ -19,8 +21,11 @@ namespace Lithium
 
 		private static readonly MethodInfo createParameter;
 		private static readonly MethodInfo createParameterList;
-		private static readonly MethodInfo convertStringToChar;
+		private static readonly MethodInfo readChar;
+		private static readonly MethodInfo readNullableChar;
 		private static readonly MethodInfo throwDataException;
+		private static readonly MethodInfo enumParse;
+		private static readonly MethodInfo getTypeFromHandle;
 		private static readonly MethodInfo getValueByIndex;
 		private static readonly MethodInfo getValueByKey;
 
@@ -28,14 +33,17 @@ namespace Lithium
 		{
 			createParameter = typeof(SqlMapper).GetMethod("CreateParameter", BindingFlags.NonPublic | BindingFlags.Static);
 			createParameterList = typeof(SqlMapper).GetMethod("CreateParameterList", BindingFlags.NonPublic | BindingFlags.Static);
-			convertStringToChar = typeof(SqlMapper).GetMethod("ConvertStringToChar", BindingFlags.NonPublic | BindingFlags.Static);
+			readChar = typeof(SqlMapper).GetMethod("ReadChar", BindingFlags.NonPublic | BindingFlags.Static);
+			readNullableChar = typeof(SqlMapper).GetMethod("ReadNullableChar", BindingFlags.NonPublic | BindingFlags.Static);
 			throwDataException = typeof(SqlMapper).GetMethod("ThrowDataException", BindingFlags.NonPublic | BindingFlags.Static);
+			enumParse = typeof(Enum).GetMethod("Parse", new Type[] { typeof(Type), typeof(string), typeof(bool) });
+			getTypeFromHandle = typeof(Type).GetMethod("GetTypeFromHandle");
 			getValueByIndex = (from m in typeof(IDataRecord).GetProperties(BindingFlags.Instance | BindingFlags.Public)
 							   where m.GetIndexParameters().Any() && m.GetIndexParameters()[0].ParameterType == typeof(int)
 							   select m.GetGetMethod()).First();
 			getValueByKey = (from m in typeof(IDictionary<string, object>).GetProperties(BindingFlags.Instance | BindingFlags.Public)
-			                 where m.GetIndexParameters().Any() && m.GetIndexParameters()[0].ParameterType == typeof(string)
-			                 select m.GetGetMethod()).First();
+							 where m.GetIndexParameters().Any() && m.GetIndexParameters()[0].ParameterType == typeof(string)
+							 select m.GetGetMethod()).First();
 
 			#region TypeMap
 			typeMap[typeof(byte).TypeHandle] = DbType.Byte;
@@ -119,7 +127,7 @@ namespace Lithium
 				identity = new QueryIdentity(connection.ConnectionString, query, null, parameters != null ? parameters.GetType() : null);
 
 			QueryInfo info = GetQueryInfo(identity);
-			if (info.ParameterGenerator == null)
+			if (info.ParameterGenerator == null && parameters != null)
 				info.ParameterGenerator = GetParameterGenerator(parameters);
 
 			IDbCommand command = null;
@@ -154,7 +162,7 @@ namespace Lithium
 		{
 			if (parameters is List<Parameter>)
 				return GetStaticParameterGenerator(parameters);
-			
+
 			return GetAnonymousParameterGenerator(parameters);
 		}
 		private static Action<IDbCommand, object> GetStaticParameterGenerator(object parameters)
@@ -178,7 +186,7 @@ namespace Lithium
 			il.Emit(OpCodes.Unbox_Any, type); // [typed parameters object]
 			il.Emit(OpCodes.Stloc_0); // stack is empty
 
-			foreach (var property in GetPropertyInfo(parameters)) {
+			foreach (var property in GetParameterInfo(parameters)) {
 				il.Emit(OpCodes.Ldarg_0); // [command]
 				il.Emit(OpCodes.Ldstr, property.Name); // [command] [name]
 				il.Emit(OpCodes.Ldloc_0); // [command] [name] [typed parameter]
@@ -191,7 +199,7 @@ namespace Lithium
 					il.Emit(OpCodes.Ldstr, property.Name); // [command] [name] [typed parameter] [name]
 					il.Emit(OpCodes.Callvirt, getValueByKey); // [command] [name] [typed value]
 				}
-				
+
 				var dbType = GetDbType(property.Type);
 				if (dbType != DbType.Xml) {
 					il.Emit(OpCodes.Ldc_I4, (int)dbType); // [command] [name] [typed value] [dbtype]
@@ -261,84 +269,32 @@ namespace Lithium
 			if (t == typeof(object) || t == typeof(DynamicRow))
 				return GetDynamicDeserializer<T>(dataRecord);
 
-			if (t.IsClass && t != typeof(string))
+			if (typeMap.ContainsKey(t.TypeHandle) == false && t.IsEnum == false)
 				return GetClassDeserializer<T>(dataRecord);
 
 			return GetStructDeserializer<T>();
 		}
-		public class PropertyInfo
-		{
-			public string Name { get; set; }
-			public Type Type { get; set; }
-			public List<MethodInfo> GetMethods { get; set; }
-			public MethodInfo SetMethod { get; set; }			
-		}
-		private static IEnumerable<PropertyInfo> GetProperties(Type type, List<string> name = null, List<MethodInfo> getMethods = null) {
-			var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-
-			List<PropertyInfo> result = new List<PropertyInfo>();
-			foreach (var property in properties) {
-				if (property.PropertyType.IsClass && property.PropertyType != typeof(string)) {
-					var _name = name == null ? new List<string>() : new List<string>(name);
-					_name.Add(property.Name);
-
-					var _getMethods = getMethods == null ? new List<MethodInfo>() : new List<MethodInfo>(getMethods);
-					_getMethods.Add(property.GetGetMethod());
-
-					result.AddRange(GetProperties(property.PropertyType, _name, _getMethods));
-				}
-				else {
-					var setMethod = property.DeclaringType == type ? property.GetSetMethod(true) : property.DeclaringType.GetProperty(property.Name).GetSetMethod(true);
-					if (setMethod != null) {
-						var _name = name == null ? new List<string>() : new List<string>(name);
-						_name.Add(property.Name);
-
-						var _getMethods = getMethods == null ? new List<MethodInfo>() : new List<MethodInfo>(getMethods);
-
-						result.Add(new PropertyInfo {
-							Name = string.Join(".", _name),
-							Type = property.PropertyType,
-							SetMethod = setMethod,
-							GetMethods = _getMethods
-						});
-					}
-				}
-			}
-
-			return result;
-		}
 		private static Func<IDataReader, T> GetClassDeserializer<T>(IDataRecord dataRecord)
 		{
-			var t = typeof(T);
+			Type t = typeof(T);
+
+			// select all members
+			var members = GetMemberInfo(t);
+
+			// find a member for all the column names in the result set
+			var setters = dataRecord.GetColumnNames()
+									.Select(columnName =>
+										members.FirstOrDefault(x => string.Equals(x.Name, columnName, StringComparison.InvariantCulture)) ??								 // case sensitive
+										members.FirstOrDefault(x => string.Equals(x.Name, columnName, StringComparison.InvariantCultureIgnoreCase)) ??						 // case insensitive
+										members.FirstOrDefault(x => string.Equals(x.Name + "ID", columnName, StringComparison.InvariantCulture) && x.Type.IsEnum) ??		 // enum with ID postfix case sensitive
+										members.FirstOrDefault(x => string.Equals(x.Name + "ID", columnName, StringComparison.InvariantCultureIgnoreCase) && x.Type.IsEnum)) // enum with ID postfix case insensitive
+									.ToList();
+
+			bool haveEnumLocal = false;
 			int index = -1;
+			DynamicMethod dm = new DynamicMethod(string.Format("Deserializer_{0}_{1}", t.Name, Guid.NewGuid()), t, new[] { typeof(IDataReader) }, true);
+			ILGenerator il = dm.GetILGenerator();
 
-			// select all columns from the resultset
-			var columns = new List<string>();
-			for (var i = 0; i < dataRecord.FieldCount; i++)
-				columns.Add(dataRecord.GetName(i));
-
-			// select all properties and fields
-			var fields = t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-			var properties = GetProperties(t);
-
-			// setters
-			var setters = (from c in columns
-						   let property = properties.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCulture)) ??															// property case sensitive
-										  properties.FirstOrDefault(p => string.Equals(p.Name, c, StringComparison.InvariantCultureIgnoreCase))	??													// property case insensitive
-										  properties.FirstOrDefault(p => p.Type.IsEnum && string.Equals(p.Name + "ID", c, StringComparison.InvariantCulture)) ??									// property enum with ID postfix case sensitive
-										  properties.FirstOrDefault(p => p.Type.IsEnum && string.Equals(p.Name + "ID", c, StringComparison.InvariantCultureIgnoreCase))								// property enum with ID postfix case insensitive
-						   let field = property != null ? null : (fields.FirstOrDefault(f => string.Equals(f.Name, c, StringComparison.InvariantCulture)) ??										// field case sensitive
-																  fields.FirstOrDefault(f => string.Equals(f.Name, c, StringComparison.InvariantCultureIgnoreCase)) ??								// field case insensitive
-																  fields.FirstOrDefault(f => f.FieldType.IsEnum && string.Equals(f.Name + "ID", c, StringComparison.InvariantCultureIgnoreCase)) ??	// field enum with ID postfix case sensitive
-																  fields.FirstOrDefault(f => f.FieldType.IsEnum && string.Equals(f.Name + "ID", c, StringComparison.InvariantCultureIgnoreCase)))	// field enum with ID postfix case insensitive
-						   select new {
-							   Name = c,
-							   Property = property,
-							   Field = field
-						   }).ToList();
-
-			var dm = new DynamicMethod(string.Format("Deserializer_{0}", Guid.NewGuid()), t, new[] { typeof(IDataReader) }, true);
-			var il = dm.GetILGenerator();
 			il.DeclareLocal(typeof(int));
 			il.Emit(OpCodes.Ldc_I4, index);
 			il.Emit(OpCodes.Stloc_0);
@@ -347,18 +303,54 @@ namespace Lithium
 			{
 				// create instance of T
 				il.DeclareLocal(t);
-				il.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes)); // [result]
-				il.InitializeProperties(t);		
+				if (t.IsValueType == false) {
+					il.Emit(OpCodes.Newobj, t.GetConstructor(Type.EmptyTypes)); // [result]
+					il.Emit(OpCodes.Stloc_1);
+					il.Emit(OpCodes.Ldloc_1);
+				}
+				else {
+					il.Emit(OpCodes.Ldloca_S, (byte)1);
+					il.Emit(OpCodes.Initobj, t);
+					il.Emit(OpCodes.Ldloca_S, (byte)1);
+				}
+
+				List<string> instantiatedParents = new List<string>();
+				foreach (var setter in setters.Where(s => s != null && s.Parents.Count > 0)) {
+					List<string> names = new List<string>();
+					for (int i = 0; i < setter.Parents.Count; i++) {
+						names.Add(setter.Parents[i].Name);
+						if (instantiatedParents.Contains(string.Join(".", names)) == false) {
+							il.Emit(OpCodes.Dup); // [result] [result]
+
+							for (int j = 0; j < i; j++) {
+								if (setter.Parents[j].MemberType == MemberTypes.Property)
+									il.Emit(OpCodes.Callvirt, (setter.Parents[j] as PropertyInfo).GetGetMethod());
+								else if (setter.Parents[j].MemberType == MemberTypes.Field)
+									il.Emit(OpCodes.Ldfld, setter.Parents[j] as FieldInfo);
+							}
+
+							il.Emit(OpCodes.Newobj, setter.Parents[i].Type().GetConstructor(Type.EmptyTypes));
+
+							if (setter.Parents[i].MemberType == MemberTypes.Property)
+								il.Emit(OpCodes.Callvirt, (setter.Parents[i] as PropertyInfo).GetSetMethod());
+							else if (setter.Parents[i].MemberType == MemberTypes.Field)
+								il.Emit(OpCodes.Stfld, setter.Parents[i] as FieldInfo);
+
+							instantiatedParents.Add(string.Join(".", names));
+						}
+					}
+				}
 
 				foreach (var setter in setters) {
 					index += 1;
 
-					if (setter.Property == null && setter.Field == null)
+					// continue if there is no mapping
+					if (setter == null)
 						continue;
 
-					Type memberType = setter.Property != null ? setter.Property.Type : setter.Field.FieldType;
+					Type memberType = setter.MemberInfo.Type();
 					Type nullUnderlyingType = Nullable.GetUnderlyingType(memberType);
-					Type unboxType = nullUnderlyingType ?? memberType;
+					Type unboxType = nullUnderlyingType != null && nullUnderlyingType.IsEnum ? nullUnderlyingType : memberType;
 
 					// create labels to jump to
 					var nullLabel = il.DefineLabel();
@@ -366,11 +358,12 @@ namespace Lithium
 
 					il.Emit(OpCodes.Dup); // [result] [result]
 
-					// load the nested property if any
-					if (setter.Property != null) {
-						foreach (var getMethod in setter.Property.GetMethods) {
-							il.Emit(OpCodes.Callvirt, getMethod); // [result] [result or nested-property]
-						}
+					// load the member on the stack via its parents if any
+					foreach (var parent in setter.Parents) {
+						if (parent.MemberType == MemberTypes.Property)
+							il.Emit(OpCodes.Callvirt, (parent as PropertyInfo).GetGetMethod()); // [result] [result or nested-property]
+						else if (parent.MemberType == MemberTypes.Field)
+							il.Emit(OpCodes.Ldfld, parent as FieldInfo); // [result] [result or nested-property]
 					}
 
 					il.Emit(OpCodes.Ldarg_0); // [result] [result or nested-property] [reader]
@@ -379,21 +372,52 @@ namespace Lithium
 					il.Emit(OpCodes.Stloc_0); // [result] [result or nested-property] [reader] [index]
 					il.Emit(OpCodes.Callvirt, getValueByIndex); // [result] [result or nested-property] [untyped value]
 
-					il.Emit(OpCodes.Dup); // [result] [result or nested-property] [untyped value] [untyped value]
-					il.Emit(OpCodes.Isinst, typeof(DBNull)); // [result] [result or nested-property] [untyped value] [DBNull or null]
-					il.Emit(OpCodes.Brtrue_S, nullLabel); // [result] [result or nested-property] [untyped value], value is null
-
 					// a char value is returned as a string and its not possible to implicitly cast it, so we have to convert it
-					if (unboxType == typeof(char))
-						il.Emit(OpCodes.Call, convertStringToChar); // [result] [result or nested-property] [untyped char]
+					if (memberType == typeof(char) || memberType == typeof(char?)) {
+						il.Emit(OpCodes.Call, memberType == typeof(char) ? readChar : readNullableChar); // [result] [result or nested-property] [untyped char]
+					}
+					else {
+						il.Emit(OpCodes.Dup); // [result] [result or nested-property] [untyped value] [untyped value]
+						il.Emit(OpCodes.Isinst, typeof(DBNull)); // [result] [result or nested-property] [untyped value] [DBNull or null]
+						il.Emit(OpCodes.Brtrue_S, nullLabel); // [result] [result or nested-property] [untyped value], value is null
 
-					il.Emit(OpCodes.Unbox_Any, memberType); // [result] [result or nested-property] [typed value]
+						if (unboxType.IsEnum) {
+							if (!haveEnumLocal) {
+								il.DeclareLocal(typeof(string));
+								haveEnumLocal = true;
+							}
+
+							Label isNotString = il.DefineLabel();
+							il.Emit(OpCodes.Dup); // [result] [result or nested-property] [untyped value] [untyped value]
+							il.Emit(OpCodes.Isinst, typeof(string)); // [result] [result or nested-property] [untyped value] [untyped value or null]
+							il.Emit(OpCodes.Dup); // [result] [result or nested-property] [untyped value] [untyped value or null] [untyped value or null]
+							il.Emit(OpCodes.Stloc_2); // [result] [result or nested-property] [untyped value] [untyped value or null]
+							il.Emit(OpCodes.Brfalse_S, isNotString); // [result] [result or nested-property] [untyped value]
+
+							il.Emit(OpCodes.Pop); // [result] [result or nested-property]
+
+							il.Emit(OpCodes.Ldtoken, unboxType); // [result] [result or nested-property] [enum-type-token]
+							il.EmitCall(OpCodes.Call, getTypeFromHandle, null); // [result] [result or nested-property] [enum-type]
+							il.Emit(OpCodes.Ldloc_2); // [result] [result or nested-property] [enum-type] [untyped value]
+							il.Emit(OpCodes.Ldc_I4_1); // [result] [result or nested-property] [enum-type] [untyped value] [1]
+							il.EmitCall(OpCodes.Call, enumParse, null); // [result] [result or nested-property] [untyped enum value]
+
+							il.MarkLabel(isNotString);
+
+							il.Emit(OpCodes.Unbox_Any, unboxType); // [result] [result or nested-property] [enum value]
+
+							if (nullUnderlyingType != null)
+								il.Emit(OpCodes.Newobj, memberType.GetConstructor(new[] { nullUnderlyingType })); // [result] [result or nested-property] [nullable enum value]
+						}
+						else
+							il.Emit(OpCodes.Unbox_Any, unboxType); // [result] [result or nested-property] [typed value]
+					}					
 
 					// set value
-					if (setter.Property != null)
-						il.Emit(OpCodes.Callvirt, setter.Property.SetMethod); // [result]
-					else
-						il.Emit(OpCodes.Stfld, setter.Field); // [result]
+					if (setter.MemberInfo.MemberType == MemberTypes.Property)
+						il.Emit(t.IsValueType ? OpCodes.Call : OpCodes.Callvirt, (setter.MemberInfo as PropertyInfo).GetSetMethod()); // [result]
+					else if (setter.MemberInfo.MemberType == MemberTypes.Field)
+						il.Emit(OpCodes.Stfld, setter.MemberInfo as FieldInfo); // [result]
 
 					// jump to the next setter
 					il.Emit(OpCodes.Br, nextLabel);
@@ -408,7 +432,10 @@ namespace Lithium
 				}
 
 				// store the result
-				il.Emit(OpCodes.Stloc_1);
+				if (t.IsValueType)
+					il.Emit(OpCodes.Pop);
+				else
+					il.Emit(OpCodes.Stloc_1);
 			}
 			il.BeginCatchBlock(typeof(Exception)); // [exception]
 			{
@@ -416,12 +443,13 @@ namespace Lithium
 				il.Emit(OpCodes.Ldarg_0); // [exception] [index] [reader]
 				il.Emit(OpCodes.Call, throwDataException); // stack is empty
 				il.Emit(OpCodes.Ldnull); // [null]
-				il.Emit(OpCodes.Stloc_1); // store value null over the result (slot 0)
+				il.Emit(OpCodes.Stloc_1); // store value null over the result
 			}
 			il.EndExceptionBlock();
 
 			il.Emit(OpCodes.Ldloc_1); // load result
 			il.Emit(OpCodes.Ret);
+
 			return dm.CreateDelegate(typeof(Func<IDataReader, T>)) as Func<IDataReader, T>;
 		}
 		private static Func<IDataReader, T> GetDynamicDeserializer<T>(IDataRecord dataRecord)
@@ -441,30 +469,42 @@ namespace Lithium
 		}
 		private static Func<IDataReader, T> GetStructDeserializer<T>()
 		{
-			if (typeof(T) == typeof(char) || typeof(T) == typeof(char?)) {
+			Type t = typeof(T);
+
+			if (t == typeof(char) || t == typeof(char?)) {
 				return r => {
-					var value = r.GetValue(0);
+					object value = r.GetValue(0);
 					if (value == DBNull.Value)
-						return (T)(null as object);
+						return default(T); // (T)(null as object);
 
 					return (T)(value.ToString()[0] as object);
 				};
 			}
 
+			if (t.IsEnum) {
+				return r => {
+					object value = r.GetValue(0);
+					if (value.GetType() == typeof(string))
+						return (T)Enum.Parse(t, value as string, true);
+
+					return (T)value;
+				};
+			}
+
 			return r => {
-				var value = r.GetValue(0);
+				object value = r.GetValue(0);
 				if (value == DBNull.Value)
 					value = null;
 
 				try {
 					// TODO: replace this temp fix, sqlce returns a decimal for @@identity
-					if (r.GetFieldType(0) == typeof(decimal) && typeof(T) != typeof(decimal) && typeof(T) != typeof(decimal?))
-					    return (T)Convert.ChangeType(value, typeof(T));
+					if (r.GetFieldType(0) == typeof(decimal) && t != typeof(decimal) && t != typeof(decimal?))
+						return (T)Convert.ChangeType(value, t);
 
 					return (T)value;
 				}
 				catch (Exception ex) {
-					throw new DataException(string.Format(@"Error casting ""{0}"" from [{1}] to [{2}]", value, r.GetFieldType(0).Name, typeof(T).Name), ex);
+					throw new DataException(string.Format(@"Error casting ""{0}"" from [{1}] to [{2}]", value, r.GetFieldType(0).Name, t.Name), ex);
 				}
 			};
 		}
@@ -533,26 +573,62 @@ namespace Lithium
 
 			throw new DataException(string.Format(@"Error parsing column {0}", index), ex);
 		}
-		private static object ConvertStringToChar(object value)
+		private static char ReadChar(object value)
 		{
-			return (value as string)[0];
+			if (value == null || value is DBNull) throw new ArgumentNullException("value");
+			string s = value as string;
+			if (s == null || s.Length != 1) throw new ArgumentException("A single-character was expected", "value");
+			return s[0];
 		}
-		private static IEnumerable<ParameterInfo> GetPropertyInfo(object parameters)
+		private static char? ReadNullableChar(object value)
+		{
+			if (value == null || value is DBNull) return null;
+			string s = value as string;
+			if (s == null || s.Length != 1) throw new ArgumentException("A single-character was expected", "value");
+			return s[0];
+		}
+		private static IEnumerable<Property> GetParameterInfo(object parameters)
 		{
 			if (parameters is Dictionary<string, object>) {
 				var dictionary = parameters as Dictionary<string, object>;
-				return dictionary.Select(d => new ParameterInfo {
+				return dictionary.Select(d => new Property {
 					Name = d.Key,
 					Type = d.Value != null ? d.Value.GetType() : typeof(string)
 				});
 			}
 
-			return parameters.GetType().GetProperties().Select(p => new ParameterInfo {
+			return parameters.GetType().GetProperties().Select(p => new Property {
 				Name = p.Name,
 				Type = p.PropertyType,
 				Getter = p.GetGetMethod()
 			});
 		}
+		private static IEnumerable<Member> GetMemberInfo(Type type, List<MemberInfo> parents = null)
+		{
+			List<MemberInfo> members = new List<MemberInfo>();
+			members.AddRange(type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance));
+			members.AddRange(type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(f => f.Name.EndsWith("k__BackingField") == false));
 
+			List<Member> result = new List<Member>();
+			foreach (MemberInfo member in members) {
+				Type memberType = member.Type();
+
+				if (typeMap.ContainsKey(memberType.TypeHandle) == false && memberType.IsEnum == false) {
+					var newParents = parents == null ? new List<MemberInfo>() : new List<MemberInfo>(parents);
+					newParents.Add(member);
+
+					result.AddRange(GetMemberInfo(memberType, newParents));
+					continue;
+				}
+
+				result.Add(new Member {
+					Type = memberType,
+					MemberInfo = member,
+					Parents = parents == null ? new List<MemberInfo>() : new List<MemberInfo>(parents)
+				});
+			}
+
+			return result;
+		}
 	}
 }

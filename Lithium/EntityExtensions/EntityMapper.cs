@@ -74,7 +74,7 @@ namespace Lithium.EntityExtensions
 
 			connection.ExecuteInternal(entityMap.InsertQuery, parameters);
 			if (entityMap.AutoIncrement) {
-				var result = connection.QueryInternal(SelectIdentityQuery).Single();
+				dynamic result = connection.QueryInternal(SelectIdentityQuery).Single();
 				entityMap.IdentitySetter(entity, result.ID);
 			}
 		}

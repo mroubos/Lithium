@@ -38,9 +38,9 @@ namespace Lithium
 			}
 		}
 
-		public override bool Equals(object obj)
+		public override bool Equals(object other)
 		{
-			return Equals(obj as QueryIdentity);
+			return Equals(other as QueryIdentity);
 		}
 
 		public override int GetHashCode()

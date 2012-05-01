@@ -1,0 +1,40 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0" DefaultTargets="default">
+	<PropertyGroup>
+		<Configuration Condition="'$(Configuration)'==''" >Release</Configuration>
+		<ProjectName>Lithium</ProjectName>
+		<BaseDir>$(MSBuildProjectDirectory)</BaseDir>
+		<OutputDir>$(BaseDir)\$(ProjectName)\bin\$(Configuration)</OutputDir>
+		<SolutionFile>$(BaseDir)\$(ProjectName).sln</SolutionFile>
+		<MSBuildExtensions>$(BaseDir)\Library\MSBuild\MSBuild.Community.Tasks.dll</MSBuildExtensions>
+	</PropertyGroup>
+
+	<UsingTask AssemblyFile="$(MSBuildExtensions)" TaskName="MSBuild.Community.Tasks.XmlUpdate" />
+
+	<Target Name="Default" DependsOnTargets="Package" />
+
+	<Target Name="Package">
+		<ItemGroup>
+			<MainBinaries Include="$(BaseDir)\$(ProjectName)\bin\$(Configuration)***.*" />
+		</ItemGroup>
+
+		<!-- First copy the nuspec template files to the package dir -->
+		<Copy SourceFiles="$(BaseDir)\$(ProjectName).nuspec" DestinationFolder="$(OutputDir)" />
+
+		<!-- Get the version number of the main FV assembly to insert into the nuspec files -->
+		<GetAssemblyIdentity AssemblyFiles="$(OutputDir)\$(ProjectName).dll">
+			<Output TaskParameter="Assemblies" ItemName="AsmInfo" />
+		</GetAssemblyIdentity>
+
+		<!-- insert the version number into the nuspec files -->
+		<XmlUpdate
+			Namespace="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd"
+			XmlFileName="$(OutputDir)\$(ProjectName).nuspec"
+			XPath="/package/metadata/version"
+			Value="%(AsmInfo.Version)" />
+
+		<Exec WorkingDirectory="$(OutputDir)"
+			  Command="$(BaseDir)\..\Nuget\Nuget.exe pack $(OutputDir)\$(ProjectName).nuspec" />
+
+		<Delete Files="$(OutputDir)\$(ProjectName).nuspec" />
+	</Target>
+</Project>

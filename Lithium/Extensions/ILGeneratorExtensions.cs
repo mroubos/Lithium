@@ -2,6 +2,7 @@
 using System;
 using System.Reflection;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace Lithium.Extensions
 {
@@ -29,21 +30,20 @@ namespace Lithium.Extensions
 			}
 		}
 
-		/// <summary>
-		/// Initializes all properties on the instance of parameter Type
-		/// </summary>
-		/// <param name="type">Type (requires an empty constructor on the type and all the class type properties)</param>
-		public static void InitializeProperties(this ILGenerator il, Type type)
-		{
-			var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-								 .Where(p => p.PropertyType.IsClass && p.PropertyType != typeof(string));
+		//public static void EmitReadValue(this ILGenerator il, MemberInfo memberInfo)
+		//{
+		//	if (memberInfo is PropertyInfo)
+		//		il.Emit(memberInfo.Type().IsValueType ? OpCodes.Call : OpCodes.Callvirt, (memberInfo as PropertyInfo).GetGetMethod());
+		//	else if (memberInfo is FieldInfo)
+		//		il.Emit(OpCodes.Ldfld, memberInfo as FieldInfo);
+		//}
 
-			foreach (var property in properties) {
-				il.Emit(OpCodes.Dup); // [object] [object]
-				il.Emit(OpCodes.Newobj, property.PropertyType.GetConstructor(Type.EmptyTypes)); // [object] [object] [new object]
-				il.InitializeProperties(property.PropertyType); // [object] [object] [new object]				
-				il.Emit(OpCodes.Callvirt, property.GetSetMethod()); // [object] 
-			}
-		}
+		//public static void EmitWriteValue(this ILGenerator il, MemberInfo memberInfo)
+		//{
+		//	if (memberInfo is PropertyInfo)
+		//		il.Emit(memberInfo.Type().IsValueType ? OpCodes.Call : OpCodes.Callvirt, (memberInfo as PropertyInfo).GetSetMethod());
+		//	else if (memberInfo is FieldInfo)
+		//		il.Emit(OpCodes.Stfld, memberInfo as FieldInfo);
+		//}
 	}
 }
