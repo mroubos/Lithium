@@ -19,7 +19,7 @@ namespace Lithium.SimpleExtensions
 		private static readonly MethodInfo addItem = typeof(IDictionary).GetMethod("Add", new[] { typeof(object), typeof(object) });
 
 		// stored procedure
-		public static IEnumerable<T> StoredProcedure<T>(this IDbConnection connection, string storedProcedureName, object parameters = null)
+		public static IEnumerable<T> StoredProcedure<T>(this IDbConnection connection, string storedProcedureName, object parameters = null, IDbTransaction transaction = null)
 		{
 			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, storedProcedureName, typeof(T), parameters != null ? parameters.GetType() : null);
 			QueryInfo info = SqlMapper.GetQueryInfo(identity);
@@ -28,7 +28,18 @@ namespace Lithium.SimpleExtensions
 				info.Query = GenerateStoredProcedureQuery(storedProcedureName, parameters);
 			}
 
-			return connection.QueryInternal<T>(info.Query, parameters);
+			return connection.QueryInternal<T>(info.Query, parameters, transaction, identity);
+		}
+		public static MultiResult StoredProcedureMulti(this IDbConnection connection, string storedProcedureName, object parameters = null, IDbTransaction transaction = null)
+		{
+			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, storedProcedureName, typeof(MultiResult), parameters != null ? parameters.GetType() : null);
+			QueryInfo info = SqlMapper.GetQueryInfo(identity);
+
+			if (info.Query == null) {
+				info.Query = GenerateStoredProcedureQuery(storedProcedureName, parameters);
+			}
+
+			return connection.QueryMultiInternal(info.Query, parameters, transaction, identity);
 		}
 		private static string GenerateStoredProcedureQuery(string storedProcedureName, object param)
 		{

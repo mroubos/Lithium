@@ -4,6 +4,7 @@
 	{
 		public int ID { get; set; }
 		public string Name { get; set; }
+		private string Username { get; set; }
 	}
 
 	struct MemberStruct

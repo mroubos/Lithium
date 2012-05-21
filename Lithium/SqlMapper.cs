@@ -124,7 +124,7 @@ namespace Lithium
 		internal static MultiResult QueryMultiInternal(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
 		{
 			if (identity == null)
-				identity = new QueryIdentity(connection.ConnectionString, query, null, parameters != null ? parameters.GetType() : null);
+				identity = new QueryIdentity(connection.ConnectionString, query, typeof(MultiResult), parameters != null ? parameters.GetType() : null);
 
 			QueryInfo info = GetQueryInfo(identity);
 			if (info.ParameterGenerator == null && parameters != null)

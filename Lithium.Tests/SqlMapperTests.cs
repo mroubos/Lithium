@@ -48,6 +48,14 @@ namespace Lithium.Tests
 		}
 
 		[TestMethod]
+		public void PrivateProperties()
+		{
+			Person person = Connection.Query<Person>("select 'Fabian' as Name, 'fbdegroot' as Username").First();
+			Assert.AreEqual("Fabian", person.Name);
+			//Assert.AreEqual("fbdegroot", person. person.ContactInfo1.Email);
+		}
+
+		[TestMethod]
 		public void DoesntInstantiatePropertiesWhichAreNotInTheResultSet()
 		{
 			Person person = Connection.Query<Person>("select 'Fabian' as Name").First();
