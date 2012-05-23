@@ -33,7 +33,7 @@
 			Value="%(AsmInfo.Version)" />
 
 		<Exec WorkingDirectory="$(OutputDir)"
-			  Command="$(BaseDir)\..\Nuget\Nuget.exe pack $(OutputDir)\$(ProjectName).nuspec" />
+			  Command="$(BaseDir)\Library\Nuget\Nuget.exe Pack $(OutputDir)\$(ProjectName).nuspec -Symbols" />
 
 		<Delete Files="$(OutputDir)\$(ProjectName).nuspec" />
 	</Target>

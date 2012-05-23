@@ -48,11 +48,17 @@ namespace Lithium.Tests
 		}
 
 		[TestMethod]
+		public void CircularReferencingTypes()
+		{
+			CircularPerson circularPerson = Connection.Query<CircularPerson>("select 'Fabian' as Name").First();
+			Assert.AreEqual("Fabian", circularPerson.Name);
+		}
+
+		[TestMethod]
 		public void PrivateProperties()
 		{
 			Person person = Connection.Query<Person>("select 'Fabian' as Name, 'fbdegroot' as Username").First();
 			Assert.AreEqual("Fabian", person.Name);
-			//Assert.AreEqual("fbdegroot", person. person.ContactInfo1.Email);
 		}
 
 		[TestMethod]

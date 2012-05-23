@@ -32,6 +32,12 @@
 		public string Name { get; set; }
 	}
 
+	class CircularPerson
+	{
+		public string Name { get; set; }
+		public CircularPerson Friend { get; set; }
+	}
+
 	public enum SomeEnum
 	{
 		Unknown = 0,

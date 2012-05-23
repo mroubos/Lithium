@@ -613,7 +613,8 @@ namespace Lithium
 			foreach (MemberInfo member in members) {
 				Type memberType = member.Type();
 
-				if (typeMap.ContainsKey(memberType.TypeHandle) == false && memberType.IsEnum == false) {
+				// maximum of 4 levels deep
+				if ((parents == null || parents.Count <= 4) && typeMap.ContainsKey(memberType.TypeHandle) == false && memberType.IsEnum == false) {
 					var newParents = parents == null ? new List<MemberInfo>() : new List<MemberInfo>(parents);
 					newParents.Add(member);
 
