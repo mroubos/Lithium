@@ -21,6 +21,12 @@
 		public ContactInfo ContactInfo2 { get; set; }
 	}
 
+	class PersonInternal
+	{
+		internal int ID;
+		internal string Name { get; set; }
+	}
+
 	class ContactInfo
 	{
 		public City City { get; set; }

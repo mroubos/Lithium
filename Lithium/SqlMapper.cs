@@ -415,7 +415,7 @@ namespace Lithium
 
 					// set value
 					if (setter.MemberInfo.MemberType == MemberTypes.Property)
-						il.Emit(t.IsValueType ? OpCodes.Call : OpCodes.Callvirt, (setter.MemberInfo as PropertyInfo).GetSetMethod()); // [result]
+						il.Emit(t.IsValueType ? OpCodes.Call : OpCodes.Callvirt, (setter.MemberInfo as PropertyInfo).GetSetMethod(true)); // [result]
 					else if (setter.MemberInfo.MemberType == MemberTypes.Field)
 						il.Emit(OpCodes.Stfld, setter.MemberInfo as FieldInfo); // [result]
 

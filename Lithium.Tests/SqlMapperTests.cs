@@ -55,9 +55,9 @@ namespace Lithium.Tests
 		}
 
 		[TestMethod]
-		public void PrivateProperties()
+		public void InternalPropertiesAndFields()
 		{
-			Person person = Connection.Query<Person>("select 'Fabian' as Name, 'fbdegroot' as Username").First();
+			PersonInternal person = Connection.Query<PersonInternal>("select 'Fabian' as Name, 'fbdegroot' as Username").First();
 			Assert.AreEqual("Fabian", person.Name);
 		}
 
