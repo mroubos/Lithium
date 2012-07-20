@@ -549,6 +549,10 @@ namespace Lithium
 			command.CommandText = query;
 			command.CommandType = commandType;
 
+			// default command timeout is 30 seconds, temp fix to make the command timeout configurable
+			if (connection.ConnectionTimeout > 30)
+				command.CommandTimeout = connection.ConnectionTimeout;
+
 			if (transaction != null)
 				command.Transaction = transaction;
 
