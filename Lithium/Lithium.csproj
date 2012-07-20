@@ -54,6 +54,7 @@
     <Compile Include="Member.cs" />
     <Compile Include="MultiResult.cs" />
     <Compile Include="Parameter.cs" />
+    <Compile Include="Parameters.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Property.cs" />
     <Compile Include="QueryIdentity.cs" />

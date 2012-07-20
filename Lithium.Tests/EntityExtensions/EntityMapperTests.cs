@@ -16,8 +16,8 @@ namespace Lithium.Tests.EntityExtensions
 		[ClassInitialize]
 		public static void Initialize(TestContext context)
 		{
-			Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
-			//Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
+			//Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
+			Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
 
 			// map person entity
 			Connection.Entity<Member>()

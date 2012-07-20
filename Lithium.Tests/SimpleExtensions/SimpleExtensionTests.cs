@@ -17,8 +17,8 @@ namespace Lithium.Tests.SimpleExtensions
 		[ClassInitialize]
 		public static void SetUp(TestContext context)
 		{
-			Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
-			//Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
+			//Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
+			Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
 
 			Connection.Open();
 		}

@@ -1,9 +1,11 @@
 ﻿using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
-using System.Data.SqlServerCe;
+using System.Data.SqlClient;
 using System.Linq;
 using Lithium.Extensions;
 using Lithium.Tests.Models;
+using Lithium.SimpleExtensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Lithium.Tests
@@ -16,8 +18,8 @@ namespace Lithium.Tests
 		[ClassInitialize]
 		public static void SetUp(TestContext context)
 		{
-			Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
-			//Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
+			//Connection = new SqlCeConnection(@"Data Source=Tests.sdf");
+			Connection = new SqlConnection(ConfigurationManager.ConnectionStrings["Sql"].ConnectionString);
 
 			Connection.Open();
 		}
@@ -26,6 +28,40 @@ namespace Lithium.Tests
 		public static void TearDown()
 		{
 			Connection.Dispose();
+		}
+
+		[TestMethod]
+		public void ReturnValue()
+		{
+			// Only SQL supports storedprocedures
+			if (Connection.GetConnectionType() != ConnectionType.Sql)
+				return;
+
+			var parameters = new Parameters {
+		        { "returnValue", typeof(int), ParameterDirection.ReturnValue }
+		    };
+
+			Connection.StoredProcedure("ReturnValue", parameters);
+
+			Assert.AreEqual(11, parameters.Get<int>("returnValue"));
+		}
+
+		[TestMethod]
+		public void OutputParameters()
+		{
+			// Only SQL supports storedprocedures
+			if (Connection.GetConnectionType() != ConnectionType.Sql)
+				return;
+
+			var parameters = new Parameters {
+		        { "outputInt", typeof(int), ParameterDirection.Output },
+				{ "outputString", typeof(string), ParameterDirection.Output }
+		    };
+
+			Connection.StoredProcedure("OutputParameters", parameters);
+
+			Assert.AreEqual(1337, parameters.Get<int>("outputInt"));
+			Assert.AreEqual("asdf", parameters.Get<string>("outputString"));
 		}
 
 		[TestMethod]

@@ -19,8 +19,8 @@ namespace Lithium
 		private static readonly ConcurrentDictionary<QueryIdentity, QueryInfo> cache = new ConcurrentDictionary<QueryIdentity, QueryInfo>();
 		private static readonly Dictionary<RuntimeTypeHandle, DbType> typeMap = new Dictionary<RuntimeTypeHandle, DbType>();
 
-		private static readonly MethodInfo createParameter;
-		private static readonly MethodInfo createParameterList;
+		private static readonly MethodInfo attachParameter;
+		private static readonly MethodInfo attachParameterList;
 		private static readonly MethodInfo readChar;
 		private static readonly MethodInfo readNullableChar;
 		private static readonly MethodInfo throwDataException;
@@ -31,8 +31,8 @@ namespace Lithium
 
 		static SqlMapper()
 		{
-			createParameter = typeof(SqlMapper).GetMethod("CreateParameter", BindingFlags.NonPublic | BindingFlags.Static);
-			createParameterList = typeof(SqlMapper).GetMethod("CreateParameterList", BindingFlags.NonPublic | BindingFlags.Static);
+			attachParameter = typeof(SqlMapper).GetMethod("AttachParameter", BindingFlags.NonPublic | BindingFlags.Static, null, new Type[] { typeof(IDbCommand), typeof(string), typeof(object), typeof(int) }, null);
+			attachParameterList = typeof(SqlMapper).GetMethod("AttachParameterList", BindingFlags.NonPublic | BindingFlags.Static);
 			readChar = typeof(SqlMapper).GetMethod("ReadChar", BindingFlags.NonPublic | BindingFlags.Static);
 			readNullableChar = typeof(SqlMapper).GetMethod("ReadNullableChar", BindingFlags.NonPublic | BindingFlags.Static);
 			throwDataException = typeof(SqlMapper).GetMethod("ThrowDataException", BindingFlags.NonPublic | BindingFlags.Static);
@@ -78,31 +78,31 @@ namespace Lithium
 		// public interface
 		public static T Scalar<T>(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
 		{
-			return QueryInternal<T>(connection, query, parameters, transaction).SingleOrDefault();
+			return QueryInternal<T>(connection, CommandType.Text, query, parameters, transaction).SingleOrDefault();
 		}
 		public static IEnumerable<dynamic> Query(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
 		{
-			return QueryInternal<DynamicRow>(connection, query, parameters, transaction);
+			return QueryInternal<DynamicRow>(connection, CommandType.Text, query, parameters, transaction);
 		}
 		public static IEnumerable<T> Query<T>(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
 		{
-			return QueryInternal<T>(connection, query, parameters, transaction);
+			return QueryInternal<T>(connection, CommandType.Text, query, parameters, transaction);
 		}
 		public static MultiResult QueryMulti(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
 		{
-			return QueryMultiInternal(connection, query, parameters, transaction);
+			return QueryMultiInternal(connection, CommandType.Text, query, parameters, transaction);
 		}
 		public static int Execute(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
 		{
-			return ExecuteInternal(connection, query, parameters, transaction);
+			return ExecuteInternal(connection, CommandType.Text, query, parameters, transaction);
 		}
 
 		// internal interface
-		internal static IEnumerable<dynamic> QueryInternal(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
+		internal static IEnumerable<dynamic> QueryInternal(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
 		{
-			return QueryInternal<DynamicRow>(connection, query, parameters, transaction, identity);
+			return QueryInternal<DynamicRow>(connection, commandType, query, parameters, transaction, identity);
 		}
-		internal static IEnumerable<T> QueryInternal<T>(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
+		internal static IEnumerable<T> QueryInternal<T>(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
 		{
 			if (identity == null)
 				identity = new QueryIdentity(connection.ConnectionString, query, typeof(T), parameters != null ? parameters.GetType() : null);
@@ -111,7 +111,7 @@ namespace Lithium
 			if (info.ParameterGenerator == null && parameters != null)
 				info.ParameterGenerator = GetParameterGenerator(parameters);
 
-			using (IDbCommand command = SetupCommand(connection, query, info.ParameterGenerator, parameters, transaction))
+			using (IDbCommand command = SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction))
 			using (IDataReader reader = command.ExecuteReader()) {
 				if (info.Deserializer == null)
 					info.Deserializer = GetDeserializer<T>(reader);
@@ -121,7 +121,7 @@ namespace Lithium
 					yield return deserializer(reader);
 			}
 		}
-		internal static MultiResult QueryMultiInternal(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
+		internal static MultiResult QueryMultiInternal(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
 		{
 			if (identity == null)
 				identity = new QueryIdentity(connection.ConnectionString, query, typeof(MultiResult), parameters != null ? parameters.GetType() : null);
@@ -133,7 +133,7 @@ namespace Lithium
 			IDbCommand command = null;
 			IDataReader reader = null;
 			try {
-				command = SetupCommand(connection, query, info.ParameterGenerator, parameters, transaction);
+				command = SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction);
 				reader = command.ExecuteReader();
 				return new MultiResult(command, reader, identity);
 			}
@@ -143,7 +143,7 @@ namespace Lithium
 				throw;
 			}
 		}
-		internal static int ExecuteInternal(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
+		internal static int ExecuteInternal(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
 		{
 			if (identity == null)
 				identity = new QueryIdentity(connection.ConnectionString, query, null, parameters != null ? parameters.GetType() : null);
@@ -152,7 +152,7 @@ namespace Lithium
 			if (info.ParameterGenerator == null && parameters != null)
 				info.ParameterGenerator = GetParameterGenerator(parameters);
 
-			using (IDbCommand command = SetupCommand(connection, query, info.ParameterGenerator, parameters, transaction)) {
+			using (IDbCommand command = SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction)) {
 				return command.ExecuteNonQuery();
 			}
 		}
@@ -160,7 +160,7 @@ namespace Lithium
 		// parameter generators
 		private static Action<IDbCommand, object> GetParameterGenerator(object parameters)
 		{
-			if (parameters is List<Parameter>)
+			if (parameters is List<Parameter> || parameters is Parameters)
 				return GetStaticParameterGenerator(parameters);
 
 			return GetAnonymousParameterGenerator(parameters);
@@ -168,10 +168,14 @@ namespace Lithium
 		private static Action<IDbCommand, object> GetStaticParameterGenerator(object parameters)
 		{
 			return (command, entity) => {
-				var list = parameters as List<Parameter>;
+				IEnumerable<Parameter> list;
+				if (parameters is Parameters)
+					list = parameters as Parameters;
+				else
+					list = parameters as List<Parameter>;
 
 				foreach (var parameter in list)
-					CreateParameter(command, parameter.Name, parameter.Value, (int)GetDbType(parameter.Type));
+					AttachParameter(command, parameter);
 			};
 		}
 		private static Action<IDbCommand, object> GetAnonymousParameterGenerator(object parameters)
@@ -203,37 +207,48 @@ namespace Lithium
 				var dbType = GetDbType(property.Type);
 				if (dbType != DbType.Xml) {
 					il.Emit(OpCodes.Ldc_I4, (int)dbType); // [command] [name] [typed value] [dbtype]
-					il.Emit(OpCodes.Call, createParameter); // stack is empty
+					il.Emit(OpCodes.Call, attachParameter); // stack is empty
 				}
 				else {
-					il.Emit(OpCodes.Call, createParameterList); // stack is empty
+					il.Emit(OpCodes.Call, attachParameterList); // stack is empty
 				}
 			}
 
 			il.Emit(OpCodes.Ret);
 			return dm.CreateDelegate(typeof(Action<IDbCommand, object>)) as Action<IDbCommand, object>;
 		}
-		private static void CreateParameter(IDbCommand command, string name, object value, int dbType)
+		private static void AttachParameter(IDbCommand command, Parameter parameter)
+		{
+			parameter.AttachedParameter = AttachParameter(command, parameter.Name, parameter.Value, (int)GetDbType(parameter.Type), parameter.Direction);
+		}
+		private static void AttachParameter(IDbCommand command, string name, object value, int dbType)
+		{
+			AttachParameter(command, name, value, dbType, ParameterDirection.Input);
+		}
+		private static IDbDataParameter AttachParameter(IDbCommand command, string name, object value, int dbType, ParameterDirection direction)
 		{
 			var parameter = command.CreateParameter();
 			var type = (DbType)dbType;
 			parameter.ParameterName = name;
 			parameter.DbType = type;
 			parameter.Value = value ?? DBNull.Value;
-			parameter.Direction = ParameterDirection.Input;
+			parameter.Direction = direction;
 
-			if (value != null) {
-				switch (type) {
-					case DbType.String:
-						parameter.Size = value.ToString().Length <= 4000 ? 4000 : -1;
-						break;
-					case DbType.StringFixedLength:
-						parameter.Size = value.ToString().Length;
-						break;
-				}
+			switch (type) {
+				case DbType.String:
+					parameter.Size = 4000;
+					if (value != null && value.ToString().Length > 4000)
+						parameter.Size = -1;
+					break;
+				case DbType.StringFixedLength:
+					parameter.Size = value != null
+						? value.ToString().Length
+						: 1;
+					break;
 			}
 
 			command.Parameters.Add(parameter);
+			return parameter;
 		}
 		private static void CreateParameterList(IDbCommand command, string name, object value)
 		{
@@ -250,7 +265,7 @@ namespace Lithium
 				if (dbType == -1)
 					dbType = (int)GetDbType(item.GetType());
 
-				CreateParameter(command, name + count, item, dbType);
+				AttachParameter(command, name + count, item, dbType);
 			}
 
 			name = "@" + name;
@@ -527,12 +542,12 @@ namespace Lithium
 		}
 
 		// helpers
-		private static IDbCommand SetupCommand(IDbConnection connection, string query, Action<IDbCommand, object> parameterGenerator = null, object parameters = null, IDbTransaction transaction = null)
+		private static IDbCommand SetupCommand(IDbConnection connection, CommandType commandType, string query, Action<IDbCommand, object> parameterGenerator = null, object parameters = null, IDbTransaction transaction = null)
 		{
 			IDbCommand command = connection.CreateCommand();
 			command.Connection = connection;
 			command.CommandText = query;
-			command.CommandType = CommandType.Text;
+			command.CommandType = commandType;
 
 			if (transaction != null)
 				command.Transaction = transaction;

@@ -19,34 +19,17 @@ namespace Lithium.SimpleExtensions
 		private static readonly MethodInfo addItem = typeof(IDictionary).GetMethod("Add", new[] { typeof(object), typeof(object) });
 
 		// stored procedure
+		public static IEnumerable<dynamic> StoredProcedure(this IDbConnection connection, string storedProcedureName, object parameters = null, IDbTransaction transaction = null)
+		{
+			return StoredProcedure<DynamicRow>(connection, storedProcedureName, parameters, transaction);
+		}
 		public static IEnumerable<T> StoredProcedure<T>(this IDbConnection connection, string storedProcedureName, object parameters = null, IDbTransaction transaction = null)
 		{
-			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, storedProcedureName, typeof(T), parameters != null ? parameters.GetType() : null);
-			QueryInfo info = SqlMapper.GetQueryInfo(identity);
-
-			if (info.Query == null ) {
-				info.Query = GenerateStoredProcedureQuery(storedProcedureName, parameters);
-			}
-
-			return connection.QueryInternal<T>(info.Query, parameters, transaction, identity);
+			return connection.QueryInternal<T>(CommandType.StoredProcedure, storedProcedureName, parameters, transaction).ToList();
 		}
 		public static MultiResult StoredProcedureMulti(this IDbConnection connection, string storedProcedureName, object parameters = null, IDbTransaction transaction = null)
 		{
-			QueryIdentity identity = new QueryIdentity(connection.ConnectionString, storedProcedureName, typeof(MultiResult), parameters != null ? parameters.GetType() : null);
-			QueryInfo info = SqlMapper.GetQueryInfo(identity);
-
-			if (info.Query == null) {
-				info.Query = GenerateStoredProcedureQuery(storedProcedureName, parameters);
-			}
-
-			return connection.QueryMultiInternal(info.Query, parameters, transaction, identity);
-		}
-		private static string GenerateStoredProcedureQuery(string storedProcedureName, object param)
-		{
-			var properties = param.GetType().GetProperties();
-			return string.Format(StoredProcedureQuery,
-								 storedProcedureName,
-								 string.Join(", ", properties.Select(l => string.Concat("@", l.Name)).ToArray()));
+			return connection.QueryMultiInternal(CommandType.StoredProcedure, storedProcedureName, parameters, transaction);
 		}
 
 		// insert
@@ -63,9 +46,9 @@ namespace Lithium.SimpleExtensions
 				info.Query = GenerateInsertQuery(tableName, parameters);
 			}
 
-			connection.ExecuteInternal(info.Query, parameters, null, identity);
+			connection.ExecuteInternal(CommandType.Text, info.Query, parameters, null, identity);
 			return (typeof(T) != typeof(object))
-				? connection.QueryInternal<T>(SelectIdentityQuery).Single()
+				? connection.QueryInternal<T>(CommandType.Text, SelectIdentityQuery).Single()
 				: default(T);
 		}
 		private static string GenerateInsertQuery(string name, object parameters)
@@ -87,8 +70,8 @@ namespace Lithium.SimpleExtensions
 				info.Query = GenerateUpdateQuery(tableName, parameters, parametersWhere);
 				info.GetParameterCombiner = GetParameterCombiner(parameters, parametersWhere);
 			}
-			
-			return connection.ExecuteInternal(info.Query, info.GetParameterCombiner(parameters, parametersWhere), null, identity);
+
+			return connection.ExecuteInternal(CommandType.Text, info.Query, info.GetParameterCombiner(parameters, parametersWhere), null, identity);
 		}
 		private static string GenerateUpdateQuery(string name, object parameters, object parametersWhere)
 		{
@@ -152,7 +135,7 @@ namespace Lithium.SimpleExtensions
 				info.Query = GenerateDeleteQuery(tableName, parameters);
 			}
 
-			return connection.ExecuteInternal(info.Query, parameters, null, identity);
+			return connection.ExecuteInternal(CommandType.Text, info.Query, parameters, null, identity);
 		}
 		private static string GenerateDeleteQuery(string tableName, object parameters)
 		{

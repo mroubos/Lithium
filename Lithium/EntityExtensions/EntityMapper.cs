@@ -48,7 +48,7 @@ namespace Lithium.EntityExtensions
 			if (entityMap.SelectQuery == null)
 				entityMap.SelectQuery = GenerateSelectQuery(entityMap);
 
-			return connection.QueryInternal<T>(entityMap.SelectQuery, new { id }).SingleOrDefault();
+			return connection.QueryInternal<T>(CommandType.Text, entityMap.SelectQuery, new { id }).SingleOrDefault();
 		}
 		private static string GenerateSelectQuery<T>(EntityMap<T> entityMap)
 		{
@@ -72,9 +72,9 @@ namespace Lithium.EntityExtensions
 				? entityMap.ParameterRemover(entity) 
 				: entity;
 
-			connection.ExecuteInternal(entityMap.InsertQuery, parameters);
+			connection.ExecuteInternal(CommandType.Text, entityMap.InsertQuery, parameters);
 			if (entityMap.AutoIncrement) {
-				dynamic result = connection.QueryInternal(SelectIdentityQuery).Single();
+				dynamic result = connection.QueryInternal(CommandType.Text, SelectIdentityQuery).Single();
 				entityMap.IdentitySetter(entity, result.ID);
 			}
 		}
@@ -122,7 +122,7 @@ namespace Lithium.EntityExtensions
 				entityMap.UpdateQuery = GenerateUpdateQuery(entityMap);
 			}
 
-			return connection.ExecuteInternal(entityMap.UpdateQuery, entity);
+			return connection.ExecuteInternal(CommandType.Text, entityMap.UpdateQuery, entity);
 		}
 		private static string GenerateUpdateQuery<T>(EntityMap<T> entityMap)
 		{
