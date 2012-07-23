@@ -161,13 +161,13 @@ namespace Lithium
 		private static Action<IDbCommand, object> GetParameterGenerator(object parameters)
 		{
 			if (parameters is List<Parameter> || parameters is Parameters)
-				return GetStaticParameterGenerator(parameters);
+				return GetStaticParameterGenerator();
 
 			return GetAnonymousParameterGenerator(parameters);
 		}
-		private static Action<IDbCommand, object> GetStaticParameterGenerator(object parameters)
+		private static Action<IDbCommand, object> GetStaticParameterGenerator()
 		{
-			return (command, entity) => {
+			return (command, parameters) => {
 				IEnumerable<Parameter> list;
 				if (parameters is Parameters)
 					list = parameters as Parameters;
