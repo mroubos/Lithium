@@ -1,4 +1,4 @@
-﻿namespace Lithium.Tests.Models
+namespace Lithium.Tests.Models
 {
 	class Member
 	{
