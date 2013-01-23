@@ -250,7 +250,7 @@ namespace Lithium
 			command.Parameters.Add(parameter);
 			return parameter;
 		}
-		private static void CreateParameterList(IDbCommand command, string name, object value)
+		private static void AttachParameterList(IDbCommand command, string name, object value)
 		{
 			if (value == null)
 				return;
