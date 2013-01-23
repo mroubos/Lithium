@@ -11,6 +11,6 @@
     <description>Lightweight SQL object mapper based on dapper-dot-net by Sam Saffron and Marc Gravell.</description>
   </metadata>
   <files>
-    <file src="Lithium.dll" target="lib\net40\Lithium.dll" />
+    <file src="Lithium.dll" target="lib\net45\Lithium.dll" />
   </files>
 </package>
