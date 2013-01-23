@@ -1,16 +1,16 @@
+using Lithium.Extensions;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Globalization;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
-using System.Threading;
-using Lithium.Extensions;
+using System.Threading.Tasks;
 
 namespace Lithium
 {
@@ -97,6 +97,12 @@ namespace Lithium
 			return ExecuteInternal(connection, CommandType.Text, query, parameters, transaction);
 		}
 
+		// public async interface
+		public static async Task<int> ExecuteAsync(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
+		{
+			return await ExecuteInternalAsync(connection, CommandType.Text, query, parameters, transaction);
+		}
+
 		// internal interface
 		internal static IEnumerable<dynamic> QueryInternal(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
 		{
@@ -132,6 +138,7 @@ namespace Lithium
 
 			IDbCommand command = null;
 			IDataReader reader = null;
+
 			try {
 				command = SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction);
 				reader = command.ExecuteReader();
@@ -154,6 +161,21 @@ namespace Lithium
 
 			using (IDbCommand command = SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction)) {
 				return command.ExecuteNonQuery();
+			}
+		}
+
+		// internal async interface
+		internal static async Task<int> ExecuteInternalAsync(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
+		{
+			if (identity == null)
+				identity = new QueryIdentity(connection.ConnectionString, query, null, parameters != null ? parameters.GetType() : null);
+
+			QueryInfo info = GetQueryInfo(identity);
+			if (info.ParameterGenerator == null && parameters != null)
+				info.ParameterGenerator = GetParameterGenerator(parameters);
+
+			using (DbCommand command = (DbCommand)SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction)) {
+				return await command.ExecuteNonQueryAsync();
 			}
 		}
 

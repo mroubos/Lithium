@@ -7,6 +7,7 @@ using Lithium.Extensions;
 using Lithium.Tests.Models;
 using Lithium.SimpleExtensions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading.Tasks;
 
 namespace Lithium.Tests
 {
@@ -194,6 +195,14 @@ namespace Lithium.Tests
 
 			Assert.AreEqual(1, member.ID);
 			Assert.AreEqual("Fabian", member.Name);
+		}
+
+		[TestMethod]
+		public async Task ExecuteAsync()
+		{
+			int rows = await Connection.ExecuteAsync("select 1");
+
+			Assert.AreEqual(-1, rows);
 		}
 	}
 }
