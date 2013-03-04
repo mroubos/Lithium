@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -12,20 +13,29 @@ namespace Lithium.EntityExtensions
 		internal Type IdentityType { get; private set; }
 		internal bool AutoIncrement { get; private set; }
 
+		private ConcurrentDictionary<int, string> SelectWhereQueries { get; set; }
+
 		internal string SelectQuery { get; set; }
+		internal string SelectWhereIdQuery { get; set; }
 		internal string InsertQuery { get; set; }
 		internal string UpdateQuery { get; set; }
 		internal string DeleteQuery { get; set; }
+
 		internal Func<object, object> ParameterRemover { get; set; }
 		internal Func<object, object> IdentityGetter { get; private set; }
 		internal Action<object, object> IdentitySetter { get; private set; }
 
+		public EntityMap()
+		{
+			SelectWhereQueries = new ConcurrentDictionary<int, string>();
+		}
+
+		// interface
 		public EntityMap<T> Table(string name)
 		{
 			TableName = name;
 			return this;
 		}
-
 		public EntityMap<T> Identity(Expression<Func<T, object>> expression, bool autoIncrement = true)
 		{
 			if (expression == null) {
@@ -56,6 +66,22 @@ namespace Lithium.EntityExtensions
 			return this;
 		}
 
+		// internal interface
+		internal string GetSelectWhereQuery(int hash)
+		{
+			return SelectWhereQueries.ContainsKey(hash)
+				? SelectWhereQueries[hash]
+				: null;
+		}
+		internal void AddSelectWhereQuery(int hash, string query)
+		{
+			if (SelectWhereQueries.ContainsKey(hash))
+				return;
+
+			SelectWhereQueries[hash] = query;
+		}
+
+		// helpers
 		private static Type GetMemberUnderlyingType(MemberInfo member)
 		{
 			switch (member.MemberType) {
@@ -67,7 +93,6 @@ namespace Lithium.EntityExtensions
 					throw new ArgumentException("MemberInfo must be of type FieldInfo or PropertyInfo", "member");
 			}
 		}
-
 		private void CreateIdentitySetter()
 		{
 			var t = typeof(T);

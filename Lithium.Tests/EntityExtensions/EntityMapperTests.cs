@@ -5,6 +5,7 @@ using Lithium.EntityExtensions;
 using Lithium.Tests.Models;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Data.SqlServerCe;
+using System.Linq;
 
 namespace Lithium.Tests.EntityExtensions
 {
@@ -39,18 +40,18 @@ namespace Lithium.Tests.EntityExtensions
 		{
 			const string newName = "Jurian";
 
-			var person = new Member {
+			var member = new Member {
 				Name = "Fabian"
 			};
 
 			// insert new member
-			Connection.Insert(person);
-			Assert.IsTrue(person.ID > 0);
+			Connection.Insert(member);
+			Assert.IsTrue(member.ID > 0);
 
 			// assert insert
-			Member inserted = Connection.Select<Member>(person.ID);
-			Assert.AreEqual(person.ID, inserted.ID);
-			Assert.AreEqual(person.Name, inserted.Name);
+			Member inserted = Connection.Select<Member>(member.ID);
+			Assert.AreEqual(member.ID, inserted.ID);
+			Assert.AreEqual(member.Name, inserted.Name);
 
 			// update member
 			inserted.Name = newName;
@@ -65,8 +66,64 @@ namespace Lithium.Tests.EntityExtensions
 			Connection.Delete(updated);
 
 			// assert delete
-			Member deleted = Connection.Select<Member>(person.ID);
+			Member deleted = Connection.Select<Member>(member.ID);
 			Assert.IsNull(deleted);
+		}
+
+		[TestMethod]
+		[DeploymentItem("Database/Tests.sdf")]
+		public void SelectWhereConstant()
+		{
+			Connection.Insert(new Member {
+				Name = "Fabian"
+			});
+
+			var members = Connection.Select<Member>(x => x.Name == "Fabian");
+			Assert.IsNotNull(members);
+			Assert.AreEqual(1, members.Count());
+			Assert.AreEqual("Fabian", members.First().Name);
+
+			Connection.Delete(members.First());
+		}
+
+		[TestMethod]
+		[DeploymentItem("Database/Tests.sdf")]
+		public void SelectWhereProperty()
+		{
+			var member = new Member {
+				Name = "Fabian"
+			};
+
+			Connection.Insert(member);
+
+			var members = Connection.Select<Member>(x => x.Name == member.Name);
+			Assert.IsNotNull(members);
+			Assert.AreEqual(1, members.Count());
+			Assert.AreEqual(member.Name, members.First().Name);
+
+			Connection.Delete(members.First());
+		}
+
+		[TestMethod]
+		[DeploymentItem("Database/Tests.sdf")]
+		public void SelectAll()
+		{
+			Connection.Insert(new Member {
+				Name = "Fabian"
+			});
+
+			Connection.Insert(new Member {
+				Name = "Jurian"
+			});
+
+			var members = Connection.Select<Member>().ToList();
+			Assert.IsNotNull(members);
+			Assert.AreEqual(2, members.Count());
+			Assert.AreEqual("Fabian", members[0].Name);
+			Assert.AreEqual("Jurian", members[1].Name);
+
+			foreach (var member in members)
+				Connection.Delete(member);
 		}
 	}
 }
