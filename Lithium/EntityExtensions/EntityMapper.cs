@@ -94,10 +94,10 @@ namespace Lithium.EntityExtensions
 			object value = null;
 			Type type = typeof(object);
 			if (expression.Right.NodeType == ExpressionType.Constant) {
-				ConstantExpression left = (ConstantExpression)expression.Right;
+				ConstantExpression right = (ConstantExpression)expression.Right;
 
-				value = left.Value;
-				type = left.Type;
+				value = right.Value;
+				type = right.Type;
 			}
 			else if (expression.Right.NodeType == ExpressionType.MemberAccess) {
 				MemberExpression right = (MemberExpression)expression.Right;

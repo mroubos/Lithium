@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Linq\LinqTests.cs" />
     <Compile Include="Models\SqlMapperTests.cs" />
     <Compile Include="Models\TypeTests.cs" />
     <Compile Include="SqlMapperTests.cs" />

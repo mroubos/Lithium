@@ -125,5 +125,21 @@ namespace Lithium.Tests.EntityExtensions
 			foreach (var member in members)
 				Connection.Delete(member);
 		}
+
+		[TestMethod]
+		[DeploymentItem("Database/Tests.sdf")]
+		public void SelectWhereTwoConstant()
+		{
+			//Connection.Insert(new Member {
+			//	Name = "Fabian"
+			//});
+
+			var members = Connection.Select<Member>(x => (x.Name == "Fabian" || x.Name == "Jurian"));
+			Assert.IsNotNull(members);
+			Assert.AreEqual(1, members.Count());
+			Assert.AreEqual("Fabian", members.First().Name);
+
+			Connection.Delete(members.First());
+		}
 	}
 }
