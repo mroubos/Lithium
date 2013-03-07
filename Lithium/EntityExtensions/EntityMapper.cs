@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -10,7 +11,9 @@ namespace Lithium.EntityExtensions
 {
 	public static class EntityMapper
 	{
-		private const string SelectQuery = "select {0} from {1} where {2} = @id";
+		private const string SelectQuery = "select {0} from {1}";
+		private const string SelectWhereQuery = "select {0} from {1} where {2}";
+		private const string SelectWhereIdQuery = "select {0} from {1} where {2} = @id";
 		private const string SelectIdentityQuery = "select @@identity ID";
 		private const string InsertQuery = "insert into {0} ({1}) values ({2})";
 		private const string UpdateQuery = "update {0} set {1} where {2}";
@@ -34,6 +37,14 @@ namespace Lithium.EntityExtensions
 		}
 
 		// select
+		public static IEnumerable<T> Select<T>(this IDbConnection connection)
+		{
+			EntityMap<T> entityMap = connection.Entity<T>();
+			if (entityMap.SelectQuery == null)
+				entityMap.SelectQuery = GenerateSelectQuery(entityMap);
+
+			return connection.QueryInternal<T>(CommandType.Text, entityMap.SelectQuery);
+		}
 		public static T Select<T>(this IDbConnection connection, int id)
 		{
 			return connection.Select<T, int>(id);
@@ -45,16 +56,74 @@ namespace Lithium.EntityExtensions
 		private static T Select<T, TID>(this IDbConnection connection, TID id)
 		{
 			EntityMap<T> entityMap = connection.Entity<T>();
-			if (entityMap.SelectQuery == null)
-				entityMap.SelectQuery = GenerateSelectQuery(entityMap);
+			if (entityMap.SelectWhereIdQuery == null)
+				entityMap.SelectWhereIdQuery = GenerateSelectWhereIdQuery(entityMap);
 
-			return connection.QueryInternal<T>(CommandType.Text, entityMap.SelectQuery, new { id }).SingleOrDefault();
+			return connection.QueryInternal<T>(CommandType.Text, entityMap.SelectWhereIdQuery, new { id }).SingleOrDefault();
 		}
 		private static string GenerateSelectQuery<T>(EntityMap<T> entityMap)
 		{
 			var properties = typeof(T).GetProperties().Select(p => p.Name).ToArray();
 
-			return string.Format(SelectQuery, string.Join(",", properties), entityMap.TableName, entityMap.IdentityName);
+			return string.Format(SelectQuery, string.Join(",", properties), entityMap.TableName);
+		}
+		private static string GenerateSelectWhereIdQuery<T>(EntityMap<T> entityMap)
+		{
+			var properties = typeof(T).GetProperties().Select(p => p.Name).ToArray();
+
+			return string.Format(SelectWhereIdQuery, string.Join(",", properties), entityMap.TableName, entityMap.IdentityName);
+		}
+
+		/// <summary>
+		/// Currently only supports a single equals statement i.e.: x => x.Name == "John"
+		/// </summary>
+		public static IEnumerable<T> Select<T>(this IDbConnection connection, Expression<Func<T, bool>> predicate)
+		{
+			EntityMap<T> entityMap = connection.Entity<T>();
+			int hash = predicate.ToString().GetHashCode();
+			string query = entityMap.GetSelectWhereQuery(hash);
+			if (query == null) {
+				query = GenerateSelectWhereQuery(entityMap, predicate);
+				entityMap.AddSelectWhereQuery(hash, query);
+			}
+
+			// todo: cache
+			BinaryExpression expression = (BinaryExpression)predicate.Body;
+			MemberExpression member = (MemberExpression)expression.Left;
+
+			object value = null;
+			Type type = typeof(object);
+			if (expression.Right.NodeType == ExpressionType.Constant) {
+				ConstantExpression left = (ConstantExpression)expression.Right;
+
+				value = left.Value;
+				type = left.Type;
+			}
+			else if (expression.Right.NodeType == ExpressionType.MemberAccess) {
+				MemberExpression right = (MemberExpression)expression.Right;
+
+				value = Expression.Lambda(right).Compile().DynamicInvoke();
+				type = right.Type;
+			}
+
+			var parameters = new Parameters();
+			parameters.Add(member.Member.Name, value, type);
+			// todo: cache
+
+			return connection.QueryInternal<T>(CommandType.Text, query, parameters);
+		}
+		public static T Scalar<T>(this IDbConnection connection, Expression<Func<T, bool>> predicate)
+		{
+			return Select(connection, predicate).SingleOrDefault();
+		}
+		private static string GenerateSelectWhereQuery<T>(EntityMap<T> entityMap, Expression<Func<T, bool>> predicate)
+		{
+			var properties = typeof(T).GetProperties().Select(p => p.Name).ToArray();
+
+			BinaryExpression expression = (BinaryExpression)predicate.Body;
+			MemberExpression member = (MemberExpression)expression.Left;
+
+			return string.Format(SelectWhereQuery, string.Join(",", properties), entityMap.TableName, string.Format(@"{0}=@{0}", member.Member.Name));
 		}
 
 		// insert

@@ -35,7 +35,12 @@ namespace Lithium
 			Add(name, value, typeof(T), direction);
 		}
 
-		private void Add(string name, object value, Type type, ParameterDirection direction)
+		public void Add(string name, object value, Type type)
+		{
+			Add(name, value, type, ParameterDirection.Input);
+		}
+
+		public void Add(string name, object value, Type type, ParameterDirection direction)
 		{
 			TList.Add(new Parameter {
 				Name = name,
