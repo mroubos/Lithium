@@ -16,10 +16,10 @@ namespace Lithium.Linq
 		static ExtensionEvaluator()
 		{
 			//var take = new ProcessTake();
-			//var where = new ProcessWhere();
+			var where = new EvaluateWhere();
 			//var single = new ProcessSingle();
 			//var first = new ProcessFirst();
-			var distinct = new ProcessDistinct();
+			var distinct = new EvaluateDistinct();
 			//var holdLock = new ProcessWithHoldLock();
 			//var noLock = new ProcessWithNoLock();
 			//var rowAt = new ProcessRowAt();
@@ -71,7 +71,7 @@ namespace Lithium.Linq
 			//functionMapping.Add("ThenBy", orderByAscending);
 			//functionMapping.Add("ThenByDescending", orderByDescending);
 			functionMapping.Add("Union", notImplemented); // rely on the user to do this manually
-			//functionMapping.Add("Where", where);
+			functionMapping.Add("Where", where);
 			//functionMapping.Add("WithNoLock", noLock);
 			//functionMapping.Add("WithHoldLock", holdLock);
 			functionMapping.Add("Zip", notImplemented); // rely on the user to do this manually

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Lithium.Linq.Evaluations
 {
-	public class ProcessDistinct : IEvaluateExpression
+	public class EvaluateDistinct : IEvaluateExpression
 	{
 		public void Evaluate<T>(MethodCallExpression expression, QueryState<T> state)
 		{

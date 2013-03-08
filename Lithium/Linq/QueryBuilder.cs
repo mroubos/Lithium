@@ -12,11 +12,11 @@ namespace Lithium.Linq
 	public class QueryBuilder<T>
 	{
 		public string Query { get { EvaluateExpression(); return query; } }
-		public List<Parameter> Parameters { get { EvaluateExpression(); return parameters; } }
+		public Parameters Parameters { get { EvaluateExpression(); return parameters; } }
 
 		private bool evaluated = false;
 		private string query;
-		private List<Parameter> parameters;
+		private Parameters parameters;
 		private readonly Expression expression;
 
 		private static ConcurrentDictionary<Type, TableInfo> tableInfoCache = new ConcurrentDictionary<Type, TableInfo>();
@@ -121,10 +121,10 @@ namespace Lithium.Linq
 			//}
 
 			//// append the where clause
-			//if (state.Where.Length != 0) {
-			//	sb.Append("WHERE ");
-			//	sb.Append(state.Where.ToString());
-			//}
+			if (state.Where.Length != 0) {
+				sb.Append("WHERE ");
+				sb.Append(state.Where.ToString());
+			}
 
 			//// append the order by
 			//if (state.OrderBy.Count > 0) {

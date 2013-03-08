@@ -54,6 +54,7 @@
     <Compile Include="Extensions\IDbConnectionExtensions.cs" />
     <Compile Include="Extensions\ILGeneratorExtensions.cs" />
     <Compile Include="Extensions\MemberInfoExtensions.cs" />
+    <Compile Include="Linq\Evaluations\EvaluateWhere.cs" />
     <Compile Include="Linq\Evaluations\IEvaluateExpression.cs" />
     <Compile Include="Linq\Extensions.cs" />
     <Compile Include="Linq\ExtensionEvaluator.cs" />

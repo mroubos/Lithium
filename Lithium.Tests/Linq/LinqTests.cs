@@ -32,9 +32,14 @@ namespace Lithium.Tests.Linq
 		[TestMethod]
 		public void TestMethod1()
 		{
-			var x = Connection.Query<Member>()
-							  .Distinct()
-							  .ToList();
+			var member = new Member {
+				Name = "Fabian"
+			};
+
+			var members = Connection.Query<Member>()
+									.Where(x => x.Name.Equals(member.Name))
+									.Distinct()
+									.ToList();
 		}
 	}
 }
