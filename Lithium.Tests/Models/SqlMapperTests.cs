@@ -1,9 +1,9 @@
 namespace Lithium.Tests.Models
 {
-	class Member
+	public class Member
 	{
-		public int ID { get; set; }
-		public string Name { get; set; }
+		public virtual int ID { get; set; }
+		public virtual string Name { get; set; }
 		private string Username { get; set; }
 	}
 

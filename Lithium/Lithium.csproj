@@ -46,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Context.cs" />
     <Compile Include="DynamicRow.cs" />
     <Compile Include="EntityExtensions\EntityMap.cs" />
     <Compile Include="EntityExtensions\EntityMapper.cs" />
@@ -60,6 +61,7 @@
     <Compile Include="Parameters.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Property.cs" />
+    <Compile Include="Proxy.cs" />
     <Compile Include="QueryIdentity.cs" />
     <Compile Include="QueryInfo.cs" />
     <Compile Include="SimpleExtensions\SimpleExtensions.cs" />
