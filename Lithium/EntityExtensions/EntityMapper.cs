@@ -63,15 +63,11 @@ namespace Lithium.EntityExtensions
 		}
 		private static string GenerateSelectQuery<T>(EntityMap<T> entityMap)
 		{
-			var properties = typeof(T).GetProperties().Select(p => p.Name).ToArray();
-
-			return string.Format(SelectQuery, string.Join(",", properties), entityMap.TableName);
+			return string.Format(SelectQuery, string.Join(",", GetColumnNames(typeof(T))), entityMap.TableName);
 		}
 		private static string GenerateSelectWhereIdQuery<T>(EntityMap<T> entityMap)
 		{
-			var properties = typeof(T).GetProperties().Select(p => p.Name).ToArray();
-
-			return string.Format(SelectWhereIdQuery, string.Join(",", properties), entityMap.TableName, entityMap.IdentityName);
+			return string.Format(SelectWhereIdQuery, string.Join(",", GetColumnNames(typeof(T))), entityMap.TableName, entityMap.IdentityName);
 		}
 
 		/// <summary>
@@ -118,12 +114,10 @@ namespace Lithium.EntityExtensions
 		}
 		private static string GenerateSelectWhereQuery<T>(EntityMap<T> entityMap, Expression<Func<T, bool>> predicate)
 		{
-			var properties = typeof(T).GetProperties().Select(p => p.Name).ToArray();
-
 			BinaryExpression expression = (BinaryExpression)predicate.Body;
 			MemberExpression member = (MemberExpression)expression.Left;
 
-			return string.Format(SelectWhereQuery, string.Join(",", properties), entityMap.TableName, string.Format(@"{0}=@{0}", member.Member.Name));
+			return string.Format(SelectWhereQuery, string.Join(",", GetColumnNames(typeof(T))), entityMap.TableName, string.Format(@"{0}=@{0}", member.Member.Name));
 		}
 
 		// insert
@@ -149,11 +143,11 @@ namespace Lithium.EntityExtensions
 		}
 		private static string GenerateInsertQuery<T>(EntityMap<T> entityMap)
 		{
-			var properties = typeof(T).GetProperties();
+			var properties = GetColumnNames(typeof(T));
 			return string.Format(InsertQuery,
 								 entityMap.TableName,
-								 string.Join(",", properties.Where(p => entityMap.AutoIncrement == false || p.Name != entityMap.IdentityName).Select(l => l.Name).ToArray()),
-								 string.Join(",", properties.Where(p => entityMap.AutoIncrement == false || p.Name != entityMap.IdentityName).Select(l => "@" + l.Name).ToArray()));
+								 string.Join(",", properties.Where(p => entityMap.AutoIncrement == false || p != entityMap.IdentityName)),
+								 string.Join(",", properties.Where(p => entityMap.AutoIncrement == false || p != entityMap.IdentityName).Select(l => "@" + l)));
 		}
 		private static Func<object, object> GetParameterRemover(object parameters, string parameter)
 		{
@@ -195,10 +189,10 @@ namespace Lithium.EntityExtensions
 		}
 		private static string GenerateUpdateQuery<T>(EntityMap<T> entityMap)
 		{
-			var properties = typeof(T).GetProperties();
+			var properties = GetColumnNames(typeof(T));
 			return string.Format(UpdateQuery,
 			                     entityMap.TableName,
-			                     string.Join(",", properties.Where(p => p.Name != entityMap.IdentityName).Select(l => string.Format(@"{0}=@{0}", l.Name)).ToArray()),
+			                     string.Join(",", properties.Where(p => p != entityMap.IdentityName).Select(l => string.Format(@"{0}=@{0}", l))),
 			                     string.Format(@"{0}=@{0}", entityMap.IdentityName));
 		}
 
@@ -237,6 +231,15 @@ namespace Lithium.EntityExtensions
 		private static string GenerateDeleteQuery<T>(EntityMap<T> entityMap)
 		{
 			return string.Format(DeleteQuery, entityMap.TableName, entityMap.IdentityName);
+		}
+
+		// helpers
+		public static List<string> GetColumnNames(Type type)
+		{
+			return type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+					   .Where(x => SqlMapper.SupportedTypes.ContainsKey(x.PropertyType))
+					   .Select(x => x.Name)
+					   .ToList();
 		}
 	}
 }
