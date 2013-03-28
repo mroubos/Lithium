@@ -17,7 +17,7 @@ namespace Lithium
 	public static class SqlMapper
 	{
 		private static readonly ConcurrentDictionary<QueryIdentity, QueryInfo> cache = new ConcurrentDictionary<QueryIdentity, QueryInfo>();
-		private static readonly Dictionary<RuntimeTypeHandle, DbType> typeMap = new Dictionary<RuntimeTypeHandle, DbType>();
+		internal static readonly Dictionary<Type, DbType> SupportedTypes = new Dictionary<Type, DbType>();
 
 		private static readonly MethodInfo attachParameter;
 		private static readonly MethodInfo attachParameterList;
@@ -46,32 +46,32 @@ namespace Lithium
 							 select m.GetGetMethod()).First();
 
 			#region TypeMap
-			typeMap[typeof(byte).TypeHandle] = DbType.Byte;
-			typeMap[typeof(byte?).TypeHandle] = DbType.Byte;
-			typeMap[typeof(byte[]).TypeHandle] = DbType.Binary;
-			typeMap[typeof(short).TypeHandle] = DbType.Int16;
-			typeMap[typeof(short?).TypeHandle] = DbType.Int16;
-			typeMap[typeof(int).TypeHandle] = DbType.Int32;
-			typeMap[typeof(int?).TypeHandle] = DbType.Int32;
-			typeMap[typeof(long).TypeHandle] = DbType.Int64;
-			typeMap[typeof(long?).TypeHandle] = DbType.Int64;
-			typeMap[typeof(float).TypeHandle] = DbType.Single;
-			typeMap[typeof(float?).TypeHandle] = DbType.Single;
-			typeMap[typeof(double).TypeHandle] = DbType.Double;
-			typeMap[typeof(double?).TypeHandle] = DbType.Double;
-			typeMap[typeof(decimal).TypeHandle] = DbType.Decimal;
-			typeMap[typeof(decimal?).TypeHandle] = DbType.Decimal;
-			typeMap[typeof(bool).TypeHandle] = DbType.Boolean;
-			typeMap[typeof(bool?).TypeHandle] = DbType.Boolean;
-			typeMap[typeof(string).TypeHandle] = DbType.String;
-			typeMap[typeof(char).TypeHandle] = DbType.StringFixedLength;
-			typeMap[typeof(char?).TypeHandle] = DbType.StringFixedLength;
-			typeMap[typeof(Guid).TypeHandle] = DbType.Guid;
-			typeMap[typeof(Guid?).TypeHandle] = DbType.Guid;
-			typeMap[typeof(DateTime).TypeHandle] = DbType.DateTime;
-			typeMap[typeof(DateTime?).TypeHandle] = DbType.DateTime;
-			typeMap[typeof(DateTimeOffset).TypeHandle] = DbType.DateTimeOffset;
-			typeMap[typeof(DateTimeOffset?).TypeHandle] = DbType.DateTimeOffset;
+			SupportedTypes[typeof(byte)] = DbType.Byte;
+			SupportedTypes[typeof(byte?)] = DbType.Byte;
+			SupportedTypes[typeof(byte[])] = DbType.Binary;
+			SupportedTypes[typeof(short)] = DbType.Int16;
+			SupportedTypes[typeof(short?)] = DbType.Int16;
+			SupportedTypes[typeof(int)] = DbType.Int32;
+			SupportedTypes[typeof(int?)] = DbType.Int32;
+			SupportedTypes[typeof(long)] = DbType.Int64;
+			SupportedTypes[typeof(long?)] = DbType.Int64;
+			SupportedTypes[typeof(float)] = DbType.Single;
+			SupportedTypes[typeof(float?)] = DbType.Single;
+			SupportedTypes[typeof(double)] = DbType.Double;
+			SupportedTypes[typeof(double?)] = DbType.Double;
+			SupportedTypes[typeof(decimal)] = DbType.Decimal;
+			SupportedTypes[typeof(decimal?)] = DbType.Decimal;
+			SupportedTypes[typeof(bool)] = DbType.Boolean;
+			SupportedTypes[typeof(bool?)] = DbType.Boolean;
+			SupportedTypes[typeof(string)] = DbType.String;
+			SupportedTypes[typeof(char)] = DbType.StringFixedLength;
+			SupportedTypes[typeof(char?)] = DbType.StringFixedLength;
+			SupportedTypes[typeof(Guid)] = DbType.Guid;
+			SupportedTypes[typeof(Guid?)] = DbType.Guid;
+			SupportedTypes[typeof(DateTime)] = DbType.DateTime;
+			SupportedTypes[typeof(DateTime?)] = DbType.DateTime;
+			SupportedTypes[typeof(DateTimeOffset)] = DbType.DateTimeOffset;
+			SupportedTypes[typeof(DateTimeOffset?)] = DbType.DateTimeOffset;
 			#endregion
 		}
 
@@ -100,7 +100,7 @@ namespace Lithium
 		// public async interface
 		public static async Task<int> ExecuteAsync(this IDbConnection connection, string query, object parameters = null, IDbTransaction transaction = null)
 		{
-			return await ExecuteInternalAsync(connection, CommandType.Text, query, parameters, transaction);
+			return await Task.Run(() => ExecuteInternal(connection, CommandType.Text, query, parameters, transaction));
 		}
 
 		// internal interface
@@ -161,21 +161,6 @@ namespace Lithium
 
 			using (IDbCommand command = SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction)) {
 				return command.ExecuteNonQuery();
-			}
-		}
-
-		// internal async interface
-		internal static async Task<int> ExecuteInternalAsync(this IDbConnection connection, CommandType commandType, string query, object parameters = null, IDbTransaction transaction = null, QueryIdentity identity = null)
-		{
-			if (identity == null)
-				identity = new QueryIdentity(connection.ConnectionString, query, null, parameters != null ? parameters.GetType() : null);
-
-			QueryInfo info = GetQueryInfo(identity);
-			if (info.ParameterGenerator == null && parameters != null)
-				info.ParameterGenerator = GetParameterGenerator(parameters);
-
-			using (DbCommand command = (DbCommand)SetupCommand(connection, commandType, query, info.ParameterGenerator, parameters, transaction)) {
-				return await command.ExecuteNonQueryAsync();
 			}
 		}
 
@@ -306,7 +291,7 @@ namespace Lithium
 			if (t == typeof(object) || t == typeof(DynamicRow))
 				return GetDynamicDeserializer<T>(dataRecord);
 
-			if (typeMap.ContainsKey(t.TypeHandle) == false && t.IsEnum == false)
+			if (SupportedTypes.ContainsKey(t) == false && t.IsEnum == false)
 				return GetClassDeserializer<T>(dataRecord);
 
 			return GetStructDeserializer<T>();
@@ -586,7 +571,7 @@ namespace Lithium
 		private static DbType GetDbType(Type type)
 		{
 			DbType dbType;
-			if (typeMap.TryGetValue(type.TypeHandle, out dbType))
+			if (SupportedTypes.TryGetValue(type, out dbType))
 				return dbType;
 
 			if (typeof(IEnumerable).IsAssignableFrom(type))
@@ -655,7 +640,7 @@ namespace Lithium
 				Type memberType = member.Type();
 
 				// maximum of 4 levels deep
-				if ((parents == null || parents.Count <= 4) && typeMap.ContainsKey(memberType.TypeHandle) == false && memberType.IsEnum == false) {
+				if ((parents == null || parents.Count <= 4) && SupportedTypes.ContainsKey(memberType) == false && memberType.IsEnum == false) {
 					var newParents = parents == null ? new List<MemberInfo>() : new List<MemberInfo>(parents);
 					newParents.Add(member);
 
