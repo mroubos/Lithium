@@ -125,5 +125,33 @@ namespace Lithium.Tests.EntityExtensions
 			foreach (var member in members)
 				Connection.Delete(member);
 		}
+
+		[TestMethod]
+		[DeploymentItem("Database/Tests.sdf")]
+		public void Ignore()
+		{
+			// arrange
+			Connection.Entity<MemberIgnore>()
+					  .Table("MemberIgnore")
+					  .Identity(p => p.ID)
+					  .Ignore(x => x.Username);
+
+			var insertedMemberIgnore = new MemberIgnore {
+				Name = "Fabian",
+				Username = "fb"
+			};
+
+			Connection.Insert(insertedMemberIgnore);
+
+			// act
+			var selectedMemberIgnore = Connection.Select<MemberIgnore>(insertedMemberIgnore.ID);
+
+			// assert
+			Assert.AreEqual(insertedMemberIgnore.Name, selectedMemberIgnore.Name);
+			Assert.IsNull(selectedMemberIgnore.Username);
+
+			// clean
+			Connection.Delete(insertedMemberIgnore);
+		}
 	}
 }

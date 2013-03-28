@@ -7,6 +7,13 @@ namespace Lithium.Tests.Models
 		private string Username { get; set; }
 	}
 
+	class MemberIgnore
+	{
+		public int ID { get; set; }
+		public string Name { get; set; }
+		public string Username { get; set; }
+	}
+
 	struct MemberStruct
 	{
 		public int ID;

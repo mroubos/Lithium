@@ -623,11 +623,14 @@ namespace Lithium
 				});
 			}
 
-			return parameters.GetType().GetProperties().Select(p => new Property {
-				Name = p.Name,
-				Type = p.PropertyType,
-				Getter = p.GetGetMethod()
-			});
+			return parameters.GetType()
+							 .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+							 .Where(x => SupportedTypes.ContainsKey(x.PropertyType) || x.PropertyType.IsEnum)
+							 .Select(p => new Property {
+								 Name = p.Name,
+								 Type = p.PropertyType,
+								 Getter = p.GetGetMethod()
+							 });
 		}
 		private static IEnumerable<Member> GetMemberInfo(Type type, List<MemberInfo> parents = null)
 		{
