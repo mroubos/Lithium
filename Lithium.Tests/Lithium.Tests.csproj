@@ -59,18 +59,19 @@
     <Compile Include="TypeTests.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Lithium\Lithium.csproj">
-      <Project>{CE55EF87-D760-4316-B308-8046C0D93DAC}</Project>
-      <Name>Lithium</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="Database\Tests.sdf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="LithiumDatabaseSchema.sql" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Lithium\Lithium.csproj">
+      <Project>{ce55ef87-d760-4316-b308-8046c0d93dac}</Project>
+      <Name>Lithium</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

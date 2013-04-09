@@ -41,7 +41,8 @@ namespace Lithium.Tests.EntityExtensions
 			const string newName = "Jurian";
 
 			var member = new Member {
-				Name = "Fabian"
+				Name = "Fabian",
+				SomeEnum = SomeEnum.One
 			};
 
 			// insert new member
@@ -52,15 +53,23 @@ namespace Lithium.Tests.EntityExtensions
 			Member inserted = Connection.Select<Member>(member.ID);
 			Assert.AreEqual(member.ID, inserted.ID);
 			Assert.AreEqual(member.Name, inserted.Name);
+			Assert.AreEqual(member.SomeEnum, inserted.SomeEnum);
 
 			// update member
 			inserted.Name = newName;
+			inserted.SomeEnum = SomeEnum.Three;
 			Connection.Update(inserted);
 
 			// assert update
 			Member updated = Connection.Select<Member>(inserted.ID);
 			Assert.AreEqual(inserted.ID, updated.ID);
 			Assert.AreEqual(inserted.Name, updated.Name);
+			Assert.AreEqual(inserted.SomeEnum, updated.SomeEnum);
+
+			Member copy = Connection.Select<Member>(member.ID);
+			Assert.AreEqual(updated.ID, copy.ID);
+			Assert.AreEqual(updated.Name, copy.Name);
+			Assert.AreEqual(updated.SomeEnum, copy.SomeEnum);
 
 			// delete member
 			Connection.Delete(updated);

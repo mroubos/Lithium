@@ -42,7 +42,7 @@ namespace Lithium.EntityExtensions
 			ignores = new List<string>();
 
 			properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-							 .Where(x => SqlMapper.SupportedTypes.ContainsKey(x.PropertyType))
+							 .Where(x => SqlMapper.SupportedTypes.ContainsKey(x.PropertyType) || x.PropertyType.IsEnum)
 							 .ToList();
 		}
 

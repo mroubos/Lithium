@@ -38,7 +38,7 @@ namespace Lithium.Tests.SimpleExtensions
 			const string updatedName = "Jurian";
 
 			// record inserten
-			int id = Connection.Insert<int>("Member", new { Name = initialName });
+			int id = Connection.Insert<int>("Member", new { Name = initialName, SomeEnum = SomeEnum.Unknown });
 
 			// record ophalen en controleren of waarde niet null is en de naam overeenkomt
 			member = Connection.Query<Member>("select * from Member where ID = @id", new { ID = id }).FirstOrDefault();
