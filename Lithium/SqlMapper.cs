@@ -291,7 +291,7 @@ namespace Lithium
 			if (t == typeof(object) || t == typeof(DynamicRow))
 				return GetDynamicDeserializer<T>(dataRecord);
 
-			if (SupportedTypes.ContainsKey(t) == false && t.IsEnum == false)
+			if (SupportedTypes.ContainsKey(t) == false && t.IsEnum == false && t.IsNullableEnum() == false)
 				return GetClassDeserializer<T>(dataRecord);
 
 			return GetStructDeserializer<T>();
@@ -510,6 +510,19 @@ namespace Lithium
 						return (T)Enum.Parse(t, value as string, true);
 
 					return (T)value;
+				};
+			}
+
+			if (t.IsNullableEnum()) {
+				return r => {
+					object value = r.GetValue(0);
+					if (value == DBNull.Value)
+						return default(T);
+
+					if (value.GetType() == typeof(string))
+						return (T)Enum.Parse(Nullable.GetUnderlyingType(t), value as string, true);
+
+					return (T)Enum.ToObject(Nullable.GetUnderlyingType(t), value);
 				};
 			}
 

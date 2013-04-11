@@ -54,6 +54,7 @@
     <Compile Include="Extensions\IDbConnectionExtensions.cs" />
     <Compile Include="Extensions\ILGeneratorExtensions.cs" />
     <Compile Include="Extensions\MemberInfoExtensions.cs" />
+    <Compile Include="Extensions\TypeExtensions.cs" />
     <Compile Include="Member.cs" />
     <Compile Include="MultiResult.cs" />
     <Compile Include="Parameter.cs" />

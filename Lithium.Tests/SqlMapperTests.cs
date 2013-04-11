@@ -189,6 +189,52 @@ namespace Lithium.Tests
 		}
 
 		[TestMethod]
+		public void NullableEnums()
+		{
+			var resultA = Connection.Query<SomeEnum?>("select @a", new { a = SomeEnum.Two }).Single();
+			Assert.AreEqual(SomeEnum.Two, resultA);
+
+			var resultB = Connection.Query<SomeEnum?>("select 2").Single();
+			Assert.AreEqual(SomeEnum.Two, resultB);
+
+			var resultC = Connection.Query<SomeEnum?>("select 'Two'").Single();
+			Assert.AreEqual(SomeEnum.Two, resultC);
+
+			var resultD = Connection.Query<SomeEnum?>("select 'tWo'").Single();
+			Assert.AreEqual(SomeEnum.Two, resultD);
+
+			var resultE = Connection.Query<SomeEnum?>("select null").Single();
+			Assert.AreEqual(null, resultE);
+
+			var resultF = Connection.Query<EnumTest>("select @a SomeEnum", new { a = SomeEnum.Two }).Single();
+			Assert.AreEqual(SomeEnum.Two, resultF.SomeEnum);
+
+			var resultG = Connection.Query<EnumTest>("select 2 SomeEnum").Single();
+			Assert.AreEqual(SomeEnum.Two, resultG.SomeEnum);
+
+			var resultH = Connection.Query<EnumTest>("select 'Two' SomeEnum").Single();
+			Assert.AreEqual(SomeEnum.Two, resultH.SomeEnum);
+
+			var resultI = Connection.Query<EnumTest>("select 'tWo' SomeEnum").Single();
+			Assert.AreEqual(SomeEnum.Two, resultI.SomeEnum);
+
+			var resultJ = Connection.Query<EnumTest>("select null SomeEnumNullable").Single();
+			Assert.AreEqual(null, resultJ.SomeEnumNullable);
+
+			var resultK = Connection.Query<EnumTest>("select 2 SomeEnumID").Single();
+			Assert.AreEqual(SomeEnum.Two, resultK.SomeEnum);
+
+			var resultL = Connection.Query<EnumTest>("select 'Two' SomeEnumID").Single();
+			Assert.AreEqual(SomeEnum.Two, resultL.SomeEnum);
+
+			var resultM = Connection.Query<EnumTest>("select 'tWo' SomeEnumID").Single();
+			Assert.AreEqual(SomeEnum.Two, resultM.SomeEnum);
+
+			var resultN = Connection.Query<EnumTest>("select 4 SomeEnum").Single();
+			Assert.AreEqual((SomeEnum?)4, resultN.SomeEnum);
+		}
+
+		[TestMethod]
 		public void Structs()
 		{
 			var member = Connection.Query<MemberStruct>("select 1 ID, 'Fabian' Name").First();
