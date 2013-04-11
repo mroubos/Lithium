@@ -656,7 +656,7 @@ namespace Lithium
 				Type memberType = member.Type();
 
 				// maximum of 4 levels deep
-				if ((parents == null || parents.Count <= 4) && SupportedTypes.ContainsKey(memberType) == false && memberType.IsEnum == false) {
+				if ((parents == null || parents.Count <= 4) && SupportedTypes.ContainsKey(memberType) == false && memberType.IsEnum == false && memberType.IsNullableEnum() == false) {
 					var newParents = parents == null ? new List<MemberInfo>() : new List<MemberInfo>(parents);
 					newParents.Add(member);
 

@@ -206,19 +206,24 @@ namespace Lithium.Tests
 			var resultE = Connection.Query<SomeEnum?>("select null").Single();
 			Assert.AreEqual(null, resultE);
 
-			var resultF = Connection.Query<EnumTest>("select @a SomeEnum", new { a = SomeEnum.Two }).Single();
+			var resultF = Connection.Query<EnumTest>("select @a SomeEnum, @a SomeEnumNullable", new { a = SomeEnum.Two }).Single();
 			Assert.AreEqual(SomeEnum.Two, resultF.SomeEnum);
+			Assert.AreEqual(SomeEnum.Two, resultF.SomeEnumNullable);
 
-			var resultG = Connection.Query<EnumTest>("select 2 SomeEnum").Single();
+			var resultG = Connection.Query<EnumTest>("select 2 SomeEnum, 2 SomeEnumNullable").Single();
 			Assert.AreEqual(SomeEnum.Two, resultG.SomeEnum);
+			Assert.AreEqual(SomeEnum.Two, resultG.SomeEnumNullable);
 
-			var resultH = Connection.Query<EnumTest>("select 'Two' SomeEnum").Single();
+			var resultH = Connection.Query<EnumTest>("select 'Two' SomeEnum, 'Two' SomeEnumNullable").Single();
 			Assert.AreEqual(SomeEnum.Two, resultH.SomeEnum);
+			Assert.AreEqual(SomeEnum.Two, resultH.SomeEnumNullable);
 
-			var resultI = Connection.Query<EnumTest>("select 'tWo' SomeEnum").Single();
+			var resultI = Connection.Query<EnumTest>("select 'tWo' SomeEnum, 'tWo' SomeEnumNullable").Single();
 			Assert.AreEqual(SomeEnum.Two, resultI.SomeEnum);
+			Assert.AreEqual(SomeEnum.Two, resultI.SomeEnumNullable);
 
-			var resultJ = Connection.Query<EnumTest>("select null SomeEnumNullable").Single();
+			var resultJ = Connection.Query<EnumTest>("select null SomeEnum, null SomeEnumNullable").Single();
+			Assert.AreEqual(SomeEnum.Unknown, resultJ.SomeEnum);
 			Assert.AreEqual(null, resultJ.SomeEnumNullable);
 
 			var resultK = Connection.Query<EnumTest>("select 2 SomeEnumID").Single();
@@ -230,8 +235,9 @@ namespace Lithium.Tests
 			var resultM = Connection.Query<EnumTest>("select 'tWo' SomeEnumID").Single();
 			Assert.AreEqual(SomeEnum.Two, resultM.SomeEnum);
 
-			var resultN = Connection.Query<EnumTest>("select 4 SomeEnum").Single();
-			Assert.AreEqual((SomeEnum?)4, resultN.SomeEnum);
+			var resultN = Connection.Query<EnumTest>("select 4 SomeEnum, 4 SomeEnumNullable").Single();
+			Assert.AreEqual((SomeEnum)4, resultN.SomeEnum);
+			Assert.AreEqual((SomeEnum?)4, resultN.SomeEnumNullable);
 		}
 
 		[TestMethod]
